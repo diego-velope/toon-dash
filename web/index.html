@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080, initial-scale=1.0">
+    <meta name="tv-navigation" content="true">
+    <title>Toon Dash</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden;
+            background: #1a1a2e;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+        }
+
+        #splash {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 1920px;
+            height: 1080px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        #splash.hidden {
+            display: none;
+        }
+
+        #splash-logo {
+            font-size: 72px;
+            font-weight: bold;
+            color: #FF6B6B;
+            text-shadow: 4px 4px 8px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
+        }
+
+        #splash-subtitle {
+            font-size: 28px;
+            color: #00D4FF;
+            margin-bottom: 60px;
+        }
+
+        #splash-loader {
+            width: 400px;
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        #splash-progress {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #FF6B6B, #FFD700);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        #splash-status {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #888;
+        }
+
+        #game-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 1920px;
+            height: 1080px;
+            z-index: 1;
+        }
+
+        #debug-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            padding: 10px;
+            background: rgba(0,0,0,0.7);
+            color: #0f0;
+            font-family: monospace;
+            font-size: 14px;
+            z-index: 2000;
+            display: none;
+        }
+
+        #debug-overlay.visible {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="splash">
+        <div id="splash-logo">TOON DASH</div>
+        <div id="splash-subtitle">TV Edition</div>
+        <div id="splash-loader">
+            <div id="splash-progress"></div>
+        </div>
+        <div id="splash-status">Initializing...</div>
+    </div>
+
+    <canvas id="game-canvas" width="1920" height="1080"></canvas>
+
+    <div id="debug-overlay">
+        <div id="debug-platform">Platform: Detecting...</div>
+        <div id="debug-memory">Memory: --</div>
+        <div id="debug-fps">FPS: --</div>
+    </div>
+
+    <script src="pal.js"></script>
+    <script src="bootstrap.js"></script>
+</body>
+</html>

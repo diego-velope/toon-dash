@@ -1,0 +1,27 @@
+[package]
+name = "toon-dash"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+macroquad = "0.4"
+rand = { version = "0.8", features = ["small_rng"] }
+log = "0.4"
+gltf = { version = "1.4", default-features = false, features = ["import", "utils"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+
+[lib]
+name = "toon_dash"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "toon-dash"
+path = "src/main.rs"
+
+# gltf → image → getrandom — required for wasm32-unknown-unknown (Tizen / browser)
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
