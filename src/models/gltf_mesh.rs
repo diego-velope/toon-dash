@@ -10,11 +10,11 @@
 //!
 //! Game: Y-up, +Z forward — use [`draw_mesh_at_rot`] to orient Kenney assets.
 
+use glam::Quat;
 use gltf::mesh::Mode;
 use gltf::Document;
 use macroquad::models::{Mesh, Vertex};
 use macroquad::prelude::*;
-use glam::Quat;
 
 /// Load all triangle primitives from every mesh (Kenney characters often use several parts).
 ///
@@ -66,11 +66,8 @@ fn append_primitive(
     let pbr = material.pbr_metallic_roughness();
     let f = pbr.base_color_factor();
 
-    let reader = primitive.reader(|buffer| {
-        buffers
-            .get(buffer.index())
-            .map(|data| data.0.as_slice())
-    });
+    let reader =
+        primitive.reader(|buffer| buffers.get(buffer.index()).map(|data| data.0.as_slice()));
 
     let positions: Vec<[f32; 3]> = reader
         .read_positions()
@@ -142,6 +139,23 @@ pub fn draw_mesh_at_rot(mesh: &Mesh, position: Vec3, scale: f32, rot: Quat) {
     let mut verts = Vec::with_capacity(mesh.vertices.len());
     for v in &mesh.vertices {
         let mut nv = *v;
+        nv.position = rot * (v.position * scale) + position;
+        verts.push(nv);
+    }
+    let m = Mesh {
+        vertices: verts,
+        indices: mesh.indices.clone(),
+        texture: mesh.texture.clone(),
+    };
+    draw_mesh(&m);
+}
+
+/// Draw a mesh with translation, non-uniform scale (Vec3), and rotation.
+pub fn draw_mesh_at_transform(mesh: &Mesh, position: Vec3, scale: Vec3, rot: Quat) {
+    let mut verts = Vec::with_capacity(mesh.vertices.len());
+    for v in &mesh.vertices {
+        let mut nv = *v;
+        // Multiply element-wise for non-uniform scale before rotating
         nv.position = rot * (v.position * scale) + position;
         verts.push(nv);
     }

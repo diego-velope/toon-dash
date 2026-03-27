@@ -9,18 +9,24 @@ use std::collections::HashMap;
 use super::mesh_from_glb_bytes;
 
 /// Paths relative to `assets/` (`set_pc_assets_folder("assets")` on PC).
+/// 🛠️ TWEAK HERE: If you download new models from Kenney or make your own,
+/// drop them in your assets folder and update these strings!
 pub mod paths {
     pub const COLORMAP_ROADS: &str = "models/textures/colormap_roads.png";
     pub const COLORMAP_PLATFORMER: &str = "models/textures/colormap_platformer.png";
     pub const ROAD_STRAIGHT: &str = "models/road-straight.glb";
     pub const CHARACTER_OODI: &str = "models/character-oodi.glb";
     pub const COIN_GOLD: &str = "models/coin-gold.glb";
-    /// `obstacle_low` — jumpable; swap to `trap-spikes-large.glb` if desired.
     pub const FENCE_LOW_STRAIGHT: &str = "models/fence-low-straight.glb";
-    /// `obstacle_high` — slideable; swap to `spike-block-wide.glb` if desired.
-    pub const SPIKE_BLOCK: &str = "models/spike-block.glb";
-    /// `obstacle_full`
+    pub const SPIKE_BLOCK: &str = "models/spike-block-wide.glb";
     pub const POLES: &str = "models/poles.glb";
+
+    // Character selection variants (from kenney_platformer-kit)
+    pub const CHAR_OODI: &str = "kenney_platformer-kit/Models/GLB format/character-oodi.glb";
+    pub const CHAR_OOLI: &str = "kenney_platformer-kit/Models/GLB format/character-ooli.glb";
+    pub const CHAR_OOZI: &str = "kenney_platformer-kit/Models/GLB format/character-oozi.glb";
+    pub const CHAR_OOPI: &str = "kenney_platformer-kit/Models/GLB format/character-oopi.glb";
+    pub const CHAR_OOBI: &str = "kenney_platformer-kit/Models/GLB format/character-oobi.glb";
 }
 
 pub struct ModelManager {
@@ -58,10 +64,7 @@ impl ModelManager {
                 Some(t)
             }
             Err(e) => {
-                info!(
-                    "Could not load {} ({e:?}) — road mesh may look wrong",
-                    paths::COLORMAP_ROADS
-                );
+                info!("Could not load {} ({e:?}) — road mesh may look wrong", paths::COLORMAP_ROADS);
                 None
             }
         };
@@ -72,39 +75,32 @@ impl ModelManager {
                 Some(t)
             }
             Err(e) => {
-                info!(
-                    "Could not load {} ({e:?}) — character/coins/obstacles may look wrong",
-                    paths::COLORMAP_PLATFORMER
-                );
+                info!("Could not load {} ({e:?}) — character/coins/obstacles may look wrong", paths::COLORMAP_PLATFORMER);
                 None
             }
         };
 
-        self.try_load_glb("road_straight", paths::ROAD_STRAIGHT, atlas_roads)
-            .await;
-        self.try_load_glb("character", paths::CHARACTER_OODI, atlas_platformer.clone())
-            .await;
-        self.try_load_glb("coin", paths::COIN_GOLD, atlas_platformer.clone())
-            .await;
-        self.try_load_glb(
-            "obstacle_low",
-            paths::FENCE_LOW_STRAIGHT,
-            atlas_platformer.clone(),
-        )
-        .await;
-        self.try_load_glb(
-            "obstacle_high",
-            paths::SPIKE_BLOCK,
-            atlas_platformer.clone(),
-        )
-        .await;
-        self.try_load_glb("obstacle_full", paths::POLES, atlas_platformer)
-            .await;
+        // ── Core gameplay models ──────────────────────────────────────────
+        self.try_load_glb("road_straight", paths::ROAD_STRAIGHT, atlas_roads).await;
+        self.try_load_glb("character", paths::CHARACTER_OODI, atlas_platformer.clone()).await;
+        self.try_load_glb("coin", paths::COIN_GOLD, atlas_platformer.clone()).await;
+        self.try_load_glb("obstacle_low", paths::FENCE_LOW_STRAIGHT, atlas_platformer.clone()).await;
+        self.try_load_glb("obstacle_high", paths::SPIKE_BLOCK, atlas_platformer.clone()).await;
+        self.try_load_glb("obstacle_full", paths::POLES, atlas_platformer.clone()).await;
+
+        // ── Character selection variants ──────────────────────────────────
+        self.try_load_glb("char_oodi", paths::CHAR_OODI, atlas_platformer.clone()).await;
+        self.try_load_glb("char_ooli", paths::CHAR_OOLI, atlas_platformer.clone()).await;
+        self.try_load_glb("char_oozi", paths::CHAR_OOZI, atlas_platformer.clone()).await;
+        self.try_load_glb("char_oopi", paths::CHAR_OOPI, atlas_platformer.clone()).await;
+        self.try_load_glb("char_oobi", paths::CHAR_OOBI, atlas_platformer).await;
 
         self.loaded = true;
         info!("Model assets ready ({} mesh(es)).", self.meshes.len());
     }
 
+    // 🛠️ EXPERT TWEAK: This function maps GLB files to Atlases (Textures).
+    // If your models look grey or blank, verify you passed in the correct PNG atlas Option!
     async fn try_load_glb(&mut self, key: &str, path: &str, atlas: Option<Texture2D>) {
         match load_file(path).await {
             Ok(bytes) => match mesh_from_glb_bytes(&bytes, atlas) {
@@ -124,6 +120,10 @@ impl ModelManager {
 
     pub fn mesh(&self, name: &str) -> Option<&Mesh> {
         self.meshes.get(name)
+    }
+
+    pub fn set_mesh(&mut self, name: &str, mesh: Mesh) {
+        self.meshes.insert(name.to_string(), mesh);
     }
 
     pub fn is_loaded(&self) -> bool {

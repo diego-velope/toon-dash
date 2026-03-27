@@ -14,6 +14,102 @@ impl Default for GameScreen {
     fn default() -> Self { Self::MainMenu }
 }
 
+// ── Sub-screens shown as overlays on the main menu ──────────────────────
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum MenuSubScreen {
+    #[default]
+    None,
+    HowToPlay,
+    Options,
+    CharacterSelect,
+}
+
+// ── Audio settings (master + music volume 0-10) ─────────────────────────
+#[derive(Debug, Clone)]
+pub struct AudioSettings {
+    pub master_volume: u8,
+    pub music_volume: u8,
+    /// Which row is focused in the options panel (0 = master, 1 = music)
+    pub focused_row: usize,
+}
+
+impl Default for AudioSettings {
+    fn default() -> Self {
+        Self {
+            master_volume: 10,
+            music_volume: 10,
+            focused_row: 0,
+        }
+    }
+}
+
+impl AudioSettings {
+    pub fn master_f32(&self) -> f32 { self.master_volume as f32 / 10.0 }
+    pub fn music_f32(&self)  -> f32 { self.music_volume  as f32 / 10.0 }
+}
+
+// ── Selectable characters ───────────────────────────────────────────────
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CharacterChoice {
+    Oodi,
+    Ooli,
+    Oozi,
+    Oopi,
+    Oobi,
+}
+
+impl Default for CharacterChoice {
+    fn default() -> Self { Self::Oodi }
+}
+
+impl CharacterChoice {
+    pub const ALL: [CharacterChoice; 5] = [
+        CharacterChoice::Oodi,
+        CharacterChoice::Ooli,
+        CharacterChoice::Oozi,
+        CharacterChoice::Oopi,
+        CharacterChoice::Oobi,
+    ];
+
+    pub fn mesh_key(&self) -> &'static str {
+        match self {
+            CharacterChoice::Oodi => "char_oodi",
+            CharacterChoice::Ooli => "char_ooli",
+            CharacterChoice::Oozi => "char_oozi",
+            CharacterChoice::Oopi => "char_oopi",
+            CharacterChoice::Oobi => "char_oobi",
+        }
+    }
+
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            CharacterChoice::Oodi => "OODI",
+            CharacterChoice::Ooli => "OOLI",
+            CharacterChoice::Oozi => "OOZI",
+            CharacterChoice::Oopi => "OOPI",
+            CharacterChoice::Oobi => "OOBI",
+        }
+    }
+
+    pub fn index(&self) -> usize {
+        Self::ALL.iter().position(|c| c == self).unwrap_or(0)
+    }
+
+    pub fn from_index(i: usize) -> Self {
+        Self::ALL[i % Self::ALL.len()]
+    }
+
+    pub fn next(&self) -> Self {
+        Self::from_index(self.index() + 1)
+    }
+
+    pub fn prev(&self) -> Self {
+        let idx = self.index();
+        if idx == 0 { Self::from_index(Self::ALL.len() - 1) } else { Self::from_index(idx - 1) }
+    }
+}
+
+// ── Game State ──────────────────────────────────────────────────────────
 #[derive(Debug, Clone)]
 pub struct GameState {
     pub screen: GameScreen,
@@ -78,10 +174,13 @@ impl GameState {
     pub fn is_paused(&self) -> bool { self.screen == GameScreen::Paused }
 }
 
+// ── Menu options ────────────────────────────────────────────────────────
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum MenuOption {
     #[default]
     Play,
+    HowToPlay,
+    Options,
     Quit,
 }
 
@@ -100,6 +199,7 @@ pub enum GameOverOption {
     Quit,
 }
 
+// ── Generic navigator ──────────────────────────────────────────────────
 pub struct MenuNavigator<T> {
     pub options: Vec<T>,
     pub selected: usize,
@@ -123,7 +223,12 @@ impl<T> MenuNavigator<T> {
 
 impl MenuNavigator<MenuOption> {
     pub fn main_menu() -> Self {
-        Self::new(vec![MenuOption::Play, MenuOption::Quit])
+        Self::new(vec![
+            MenuOption::Play,
+            MenuOption::HowToPlay,
+            MenuOption::Options,
+            MenuOption::Quit,
+        ])
     }
 }
 

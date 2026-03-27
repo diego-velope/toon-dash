@@ -14,6 +14,8 @@ pub enum ObstacleType {
 }
 
 impl ObstacleType {
+    // 🛠️ TWEAK HERE: The logical "height" of the hitbox for each obstacle. 
+    // This determines if the player bumps their head when sliding under or hits their feet when jumping over.
     pub fn height(&self) -> f32 {
         match self {
             ObstacleType::LowBarrier => 1.0,
@@ -22,6 +24,8 @@ impl ObstacleType {
         }
     }
 
+    // 🛠️ TWEAK HERE: The visual floating height offset of the obstacle. 
+    // If your custom model floats above the ground or clips into it, adjust this value!
     pub fn y_offset(&self) -> f32 {
         match self {
             ObstacleType::LowBarrier => 0.5,
@@ -139,9 +143,13 @@ impl ObstacleManager {
             if obstacle.obstacle_type.avoidable_by_jump() && is_jumping { continue; }
             if obstacle.obstacle_type.avoidable_by_slide() && is_sliding { continue; }
 
+            // 🛠️ TWEAK HERE: The core hitbox boundaries.
+            // Position3D::new(width_half, height_half, depth_half)
+            // Shrunk X from 0.8→0.65 and Z from 0.3→0.15 for "forgiveness zone":
+            // visually grazing an obstacle won't kill you, only dead-center hits will.
             let obstacle_bbox = BoundingBox::from_center(
                 obstacle.position,
-                Position3D::new(0.8, obstacle.obstacle_type.height() / 2.0, 0.3),
+                Position3D::new(0.65, obstacle.obstacle_type.height() / 2.0, 0.15),
             );
 
             if player_bbox.intersects(&obstacle_bbox) {

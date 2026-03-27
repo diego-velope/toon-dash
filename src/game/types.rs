@@ -93,11 +93,11 @@ pub struct GameConfig {
 impl Default for GameConfig {
     fn default() -> Self {
         Self {
-            lane_width: 2.0,
+            lane_width: 2.35,
             player_speed: 15.0,
             jump_height: 2.5,
             jump_duration: 0.6,
-            slide_duration: 0.8,
+            slide_duration: 0.5,
             spawn_distance: 100.0,
             despawn_distance: 30.0,
             coin_value: 10,

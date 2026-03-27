@@ -1,6 +1,7 @@
 // src/main.rs
 //! Main entry point for Toon Dash
 
+use macroquad::audio::{load_sound, play_sound, set_sound_volume, PlaySoundParams};
 use macroquad::prelude::*;
 use toon_dash::game::*;
 use toon_dash::input::*;
@@ -32,15 +33,32 @@ async fn main() {
     let mut coin_manager = CoinManager::new();
     let mut renderer = GameRenderer::new();
 
-    // Menu navigators
+    // Menu state
     let mut menu_nav = MenuNavigator::main_menu();
     let mut pause_nav = MenuNavigator::pause_menu();
     let mut gameover_nav = MenuNavigator::game_over_menu();
+    let mut sub_screen = MenuSubScreen::None;
+    let mut audio = AudioSettings::default();
+    let mut character_choice = CharacterChoice::default();
+    let mut select_char_focused = false;
 
-    // Load models
-    info!("Loading models...");
+    // Load models and audio
+    info!("Loading assets...");
     renderer.load_models().await;
-    info!("Models loaded!");
+    let bgm = load_sound("audio/toon_dash_background_music.wav")
+        .await
+        .expect("Failed to load background music");
+    info!("Assets loaded!");
+
+    // Start background music
+    play_sound(
+        &bgm,
+        PlaySoundParams {
+            looped: true,
+            // Volume will be updated immediately in the match loop
+            volume: 1.0,
+        },
+    );
 
     let mut last_time = get_time();
 
@@ -52,37 +70,131 @@ async fn main() {
         // Process input
         input.update();
 
+        // Update audio volume dynamically based on logic: min(master, music)
+        let effective_vol = audio.master_volume.min(audio.music_volume) as f32 / 10.0;
+        set_sound_volume(&bgm, effective_vol);
+
         // Handle game logic based on current screen
         match game_state.screen {
             GameScreen::MainMenu => {
-                if input.is_up_just_pressed() {
-                    menu_nav.up();
-                }
-                if input.is_down_just_pressed() {
-                    menu_nav.down();
-                }
-                if input.is_action_just_pressed() {
-                    match menu_nav.current() {
-                        MenuOption::Play => {
-                            game_state.start_game();
-                            player.reset();
-                            track.reset();
-                            obstacle_manager.reset();
-                            coin_manager.reset();
-                            menu_nav = MenuNavigator::main_menu();
-                         
-                            // ── CRITICAL: snap camera to player before first frame ──────────
-                            // Without this, the 0.15 lerp takes ~15 seconds to move the camera
-                            // from its default position (0,5,-8) to behind the player.
-                            renderer.snap_camera(
-                                player.position.x,
-                                player.position.y,
-                                player.position.z,
-                            );
+                match sub_screen {
+                    // ── No overlay: navigate main menu buttons ───────────
+                    MenuSubScreen::None => {
+                        if select_char_focused {
+                            // SELECT CHARACTER button is focused
+                            if input.is_action_just_pressed() {
+                                sub_screen = MenuSubScreen::CharacterSelect;
+                                select_char_focused = false;
+                            }
+                            if input.is_left_just_pressed() || input.is_back_just_pressed() {
+                                select_char_focused = false;
+                            }
+                        } else {
+                            // Normal menu navigation
+                            if input.is_up_just_pressed() {
+                                menu_nav.up();
+                            }
+                            if input.is_down_just_pressed() {
+                                menu_nav.down();
+                            }
+                            if input.is_action_just_pressed() {
+                                match menu_nav.current() {
+                                    MenuOption::Play => {
+                                        game_state.start_game();
+                                        player.reset();
+                                        track.reset();
+                                        obstacle_manager.reset();
+                                        coin_manager.reset();
+                                        menu_nav = MenuNavigator::main_menu();
+                                        renderer.set_active_character(&character_choice);
+                                        renderer.snap_camera(
+                                            player.position.x,
+                                            player.position.y,
+                                            player.position.z,
+                                        );
+                                    }
+                                    MenuOption::HowToPlay => {
+                                        sub_screen = MenuSubScreen::HowToPlay;
+                                    }
+                                    MenuOption::Options => {
+                                        sub_screen = MenuSubScreen::Options;
+                                    }
+                                    MenuOption::Quit => {
+                                        std::process::exit(0);
+                                    }
+                                }
+                            }
+                            // Right arrow focuses SELECT CHARACTER button
+                            if input.is_right_just_pressed() {
+                                select_char_focused = true;
+                            }
                         }
-                         
-                        MenuOption::Quit => {
-                            std::process::exit(0);
+                    }
+
+                    // ── How to Play overlay ──────────────────────────────
+                    MenuSubScreen::HowToPlay => {
+                        if input.is_action_just_pressed() || input.is_back_just_pressed() {
+                            sub_screen = MenuSubScreen::None;
+                        }
+                    }
+
+                    // ── Options overlay (volume control) ─────────────────
+                    MenuSubScreen::Options => {
+                        if input.is_back_just_pressed() {
+                            sub_screen = MenuSubScreen::None;
+                        }
+                        if input.is_up_just_pressed() {
+                            if audio.focused_row > 0 {
+                                audio.focused_row -= 1;
+                            }
+                        }
+                        if input.is_down_just_pressed() {
+                            if audio.focused_row < 1 {
+                                audio.focused_row += 1;
+                            }
+                        }
+                        if input.is_left_just_pressed() {
+                            match audio.focused_row {
+                                0 => {
+                                    if audio.master_volume > 0 {
+                                        audio.master_volume -= 1;
+                                    }
+                                }
+                                1 => {
+                                    if audio.music_volume > 0 {
+                                        audio.music_volume -= 1;
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                        if input.is_right_just_pressed() {
+                            match audio.focused_row {
+                                0 => {
+                                    if audio.master_volume < 10 {
+                                        audio.master_volume += 1;
+                                    }
+                                }
+                                1 => {
+                                    if audio.music_volume < 10 {
+                                        audio.music_volume += 1;
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+
+                    // ── Character Select overlay ─────────────────────────
+                    MenuSubScreen::CharacterSelect => {
+                        if input.is_back_just_pressed() || input.is_action_just_pressed() {
+                            sub_screen = MenuSubScreen::None;
+                        }
+                        if input.is_left_just_pressed() {
+                            character_choice = character_choice.prev();
+                        }
+                        if input.is_right_just_pressed() {
+                            character_choice = character_choice.next();
                         }
                     }
                 }
@@ -111,17 +223,18 @@ async fn main() {
                 track.update(player.distance_traveled, &config);
 
                 // Spawn obstacles and coins
-                let obstacle_zones = track.get_obstacle_zones(player.distance_traveled, config.spawn_distance);
+                let obstacle_zones =
+                    track.get_obstacle_zones(player.distance_traveled, config.spawn_distance);
                 obstacle_manager.spawn_from_segments(&obstacle_zones, &config);
                 obstacle_manager.update(player.distance_traveled, &config);
 
-                let coin_zones = track.get_coin_zones(player.distance_traveled, config.spawn_distance);
+                let coin_zones =
+                    track.get_coin_zones(player.distance_traveled, config.spawn_distance);
                 coin_manager.spawn_from_segments(&coin_zones, &config);
                 coin_manager.update(player.distance_traveled, &config);
 
                 // Check collisions
                 let player_bbox = player.get_bounding_box();
-                
                 if let Some(_obstacle) = obstacle_manager.check_collision(
                     &player_bbox,
                     player.lane,
@@ -134,10 +247,16 @@ async fn main() {
                 }
 
                 // Check coin collection
-                let coins = coin_manager.check_collection(player.lane, player.position.y, player.distance_traveled);
-                
-                // Update score
-                game_state.update_score(player.distance_traveled, game_state.coins + coins, &config);
+                let coins = coin_manager.check_collection(
+                    player.lane,
+                    player.position.y,
+                    player.distance_traveled,
+                );
+                game_state.update_score(
+                    player.distance_traveled,
+                    game_state.coins + coins,
+                    &config,
+                );
             }
             GameScreen::Paused => {
                 if input.is_up_just_pressed() {
@@ -205,6 +324,10 @@ async fn main() {
             &menu_nav,
             &pause_nav,
             &gameover_nav,
+            &sub_screen,
+            &audio,
+            &character_choice,
+            select_char_focused,
         );
 
         next_frame().await;

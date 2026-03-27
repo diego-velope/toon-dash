@@ -55,7 +55,7 @@ impl Track {
                 segment_type: SegmentType::Ground,
             });
         }
-        self.last_z = 50.0;
+        self.last_z = 40.0; // CHANGED: this was 50.0, which caused a gap at z=50!
     }
 
     pub fn update(&mut self, player_z: f32, config: &GameConfig) {
