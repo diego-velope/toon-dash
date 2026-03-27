@@ -33,14 +33,7 @@ check_requirements() {
 
 build_wasm() {
     echo -e "${YELLOW}Building WASM...${NC}"
-    mkdir -p "$BUILD_DIR"
-
-    wasm-pack build \
-        --release \
-        --target web \
-        --out-name toon_dash \
-        --out-dir "$BUILD_DIR"
-
+    cargo build --release --target wasm32-unknown-unknown
     echo -e "${GREEN}WASM build complete${NC}"
 }
 
@@ -48,13 +41,17 @@ package_dist() {
     echo -e "${YELLOW}Packaging...${NC}"
     mkdir -p "$DIST_DIR"
 
-    cp "$BUILD_DIR/toon_dash.js" "$DIST_DIR/"
-    cp "$BUILD_DIR/toon_dash_bg.wasm" "$DIST_DIR/"
+    cp "target/wasm32-unknown-unknown/release/toon-dash.wasm" "$DIST_DIR/toon-dash.wasm"
     cp "$WEB_DIR"/*.html "$DIST_DIR/"
-    cp "$WEB_DIR"/*.js "$DIST_DIR/"
+    
+    # Don't fail if there's no custom js now
+    cp "$WEB_DIR"/*.js "$DIST_DIR/" 2>/dev/null || true
+
+    # The web version needs the assets folder! Let's make sure it's packed in the dist directory.
+    cp -r "assets" "$DIST_DIR/"
 
     if command -v wasm-opt &> /dev/null; then
-        wasm-opt -Oz -o "$DIST_DIR/toon_dash_bg.wasm" "$DIST_DIR/toon_dash_bg.wasm"
+        wasm-opt -Oz -o "$DIST_DIR/toon-dash.wasm" "$DIST_DIR/toon-dash.wasm"
     fi
 
     echo ""

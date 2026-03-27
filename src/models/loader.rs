@@ -22,11 +22,11 @@ pub mod paths {
     pub const POLES: &str = "models/poles.glb";
 
     // Character selection variants (from kenney_platformer-kit)
-    pub const CHAR_OODI: &str = "kenney_platformer-kit/Models/GLB format/character-oodi.glb";
-    pub const CHAR_OOLI: &str = "kenney_platformer-kit/Models/GLB format/character-ooli.glb";
-    pub const CHAR_OOZI: &str = "kenney_platformer-kit/Models/GLB format/character-oozi.glb";
-    pub const CHAR_OOPI: &str = "kenney_platformer-kit/Models/GLB format/character-oopi.glb";
-    pub const CHAR_OOBI: &str = "kenney_platformer-kit/Models/GLB format/character-oobi.glb";
+    pub const CHAR_OODI: &str = "models/character-oodi.glb";
+    pub const CHAR_OOLI: &str = "models/character-ooli.glb";
+    pub const CHAR_OOZI: &str = "models/character-oozi.glb";
+    pub const CHAR_OOPI: &str = "models/character-oopi.glb";
+    pub const CHAR_OOBI: &str = "models/character-oobi.glb";
 }
 
 pub struct ModelManager {
@@ -51,12 +51,26 @@ impl ModelManager {
 
         info!("Loading model colors...");
 
-        self.colors.insert("character".to_string(), Color::from_rgba(70, 130, 220, 255));
-        self.colors.insert("coin".to_string(), Color::from_rgba(255, 200, 50, 255));
-        self.colors.insert("obstacle_low".to_string(), Color::from_rgba(220, 80, 80, 255));
-        self.colors.insert("obstacle_high".to_string(), Color::from_rgba(220, 140, 60, 255));
-        self.colors.insert("obstacle_full".to_string(), Color::from_rgba(150, 80, 180, 255));
-        self.colors.insert("track_segment".to_string(), Color::from_rgba(100, 100, 120, 255));
+        self.colors
+            .insert("character".to_string(), Color::from_rgba(70, 130, 220, 255));
+        self.colors
+            .insert("coin".to_string(), Color::from_rgba(255, 200, 50, 255));
+        self.colors.insert(
+            "obstacle_low".to_string(),
+            Color::from_rgba(220, 80, 80, 255),
+        );
+        self.colors.insert(
+            "obstacle_high".to_string(),
+            Color::from_rgba(220, 140, 60, 255),
+        );
+        self.colors.insert(
+            "obstacle_full".to_string(),
+            Color::from_rgba(150, 80, 180, 255),
+        );
+        self.colors.insert(
+            "track_segment".to_string(),
+            Color::from_rgba(100, 100, 120, 255),
+        );
 
         let atlas_roads = match load_texture(paths::COLORMAP_ROADS).await {
             Ok(t) => {
@@ -64,7 +78,10 @@ impl ModelManager {
                 Some(t)
             }
             Err(e) => {
-                info!("Could not load {} ({e:?}) — road mesh may look wrong", paths::COLORMAP_ROADS);
+                info!(
+                    "Could not load {} ({e:?}) — road mesh may look wrong",
+                    paths::COLORMAP_ROADS
+                );
                 None
             }
         };
@@ -75,25 +92,47 @@ impl ModelManager {
                 Some(t)
             }
             Err(e) => {
-                info!("Could not load {} ({e:?}) — character/coins/obstacles may look wrong", paths::COLORMAP_PLATFORMER);
+                info!(
+                    "Could not load {} ({e:?}) — character/coins/obstacles may look wrong",
+                    paths::COLORMAP_PLATFORMER
+                );
                 None
             }
         };
 
         // ── Core gameplay models ──────────────────────────────────────────
-        self.try_load_glb("road_straight", paths::ROAD_STRAIGHT, atlas_roads).await;
-        self.try_load_glb("character", paths::CHARACTER_OODI, atlas_platformer.clone()).await;
-        self.try_load_glb("coin", paths::COIN_GOLD, atlas_platformer.clone()).await;
-        self.try_load_glb("obstacle_low", paths::FENCE_LOW_STRAIGHT, atlas_platformer.clone()).await;
-        self.try_load_glb("obstacle_high", paths::SPIKE_BLOCK, atlas_platformer.clone()).await;
-        self.try_load_glb("obstacle_full", paths::POLES, atlas_platformer.clone()).await;
+        self.try_load_glb("road_straight", paths::ROAD_STRAIGHT, atlas_roads)
+            .await;
+        self.try_load_glb("character", paths::CHARACTER_OODI, atlas_platformer.clone())
+            .await;
+        self.try_load_glb("coin", paths::COIN_GOLD, atlas_platformer.clone())
+            .await;
+        self.try_load_glb(
+            "obstacle_low",
+            paths::FENCE_LOW_STRAIGHT,
+            atlas_platformer.clone(),
+        )
+        .await;
+        self.try_load_glb(
+            "obstacle_high",
+            paths::SPIKE_BLOCK,
+            atlas_platformer.clone(),
+        )
+        .await;
+        self.try_load_glb("obstacle_full", paths::POLES, atlas_platformer.clone())
+            .await;
 
         // ── Character selection variants ──────────────────────────────────
-        self.try_load_glb("char_oodi", paths::CHAR_OODI, atlas_platformer.clone()).await;
-        self.try_load_glb("char_ooli", paths::CHAR_OOLI, atlas_platformer.clone()).await;
-        self.try_load_glb("char_oozi", paths::CHAR_OOZI, atlas_platformer.clone()).await;
-        self.try_load_glb("char_oopi", paths::CHAR_OOPI, atlas_platformer.clone()).await;
-        self.try_load_glb("char_oobi", paths::CHAR_OOBI, atlas_platformer).await;
+        self.try_load_glb("char_oodi", paths::CHAR_OODI, atlas_platformer.clone())
+            .await;
+        self.try_load_glb("char_ooli", paths::CHAR_OOLI, atlas_platformer.clone())
+            .await;
+        self.try_load_glb("char_oozi", paths::CHAR_OOZI, atlas_platformer.clone())
+            .await;
+        self.try_load_glb("char_oopi", paths::CHAR_OOPI, atlas_platformer.clone())
+            .await;
+        self.try_load_glb("char_oobi", paths::CHAR_OOBI, atlas_platformer)
+            .await;
 
         self.loaded = true;
         info!("Model assets ready ({} mesh(es)).", self.meshes.len());

@@ -7,6 +7,20 @@ use toon_dash::game::*;
 use toon_dash::input::*;
 use toon_dash::rendering::*;
 
+#[cfg(target_arch = "wasm32")]
+use getrandom::{register_custom_getrandom, Error};
+
+#[cfg(target_arch = "wasm32")]
+fn macroquad_getrandom(buf: &mut [u8]) -> Result<(), Error> {
+    for b in buf {
+        *b = macroquad::rand::gen_range(0u16, 256u16) as u8;
+    }
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+register_custom_getrandom!(macroquad_getrandom);
+
 fn window_conf() -> Conf {
     Conf {
         window_title: "Toon Dash".to_string(),

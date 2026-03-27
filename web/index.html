@@ -75,7 +75,7 @@
             color: #888;
         }
 
-        #game-canvas {
+        #glcanvas {
             position: absolute;
             top: 0;
             left: 0;
@@ -112,7 +112,7 @@
         <div id="splash-status">Initializing...</div>
     </div>
 
-    <canvas id="game-canvas" width="1920" height="1080"></canvas>
+    <canvas id="glcanvas" tabindex="1" width="1920" height="1080"></canvas>
 
     <div id="debug-overlay">
         <div id="debug-platform">Platform: Detecting...</div>
@@ -120,7 +120,21 @@
         <div id="debug-fps">FPS: --</div>
     </div>
 
-    <script src="pal.js"></script>
-    <script src="bootstrap.js"></script>
+    <script src="https://not-fl3.github.io/miniquad-samples/mq_js_bundle.js"></script>
+    <script>
+        load("toon-dash.wasm");
+
+        // Hide splash screen after the game bundle has had a moment to initialize
+        setTimeout(function () {
+            var splash = document.getElementById("splash");
+            if (splash) {
+                splash.classList.add("hidden");
+            }
+            var canvas = document.getElementById("glcanvas");
+            if (canvas) {
+                canvas.focus();
+            }
+        }, 1500); 
+    </script>
 </body>
 </html>

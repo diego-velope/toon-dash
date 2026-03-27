@@ -5,7 +5,7 @@
 (function() {
     'use strict';
 
-    const WASM_MODULE = 'toon_dash.js';
+    const WASM_MODULE = 'toon-dash.js';
     const MEMORY_INITIAL = 64; // MB
     const MEMORY_MAXIMUM = 256; // MB
 
