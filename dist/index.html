@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=1920, height=1080, initial-scale=1.0">
@@ -7,18 +8,24 @@
     <title>Toon Dash</title>
 
     <style>
+        @font-face {
+            font-family: 'Luckiest Guy';
+            src: url('assets/fonts/LuckiestGuy-Regular.ttf') format('truetype');
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
-        html, body {
+        html,
+        body {
             width: 1920px;
             height: 1080px;
             overflow: hidden;
             background: #1a1a2e;
-            font-family: 'Segoe UI', Tahoma, sans-serif;
+            font-family: 'Luckiest Guy', cursive;
         }
 
         #splash {
@@ -27,52 +34,83 @@
             left: 0;
             width: 1920px;
             height: 1080px;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            background: url('assets/images/toon_dash_background.png') no-repeat center;
+            background-size: cover;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             z-index: 1000;
+            transition: opacity 0.5s ease-out;
         }
 
         #splash.hidden {
-            display: none;
+            opacity: 0;
+            pointer-events: none;
         }
 
-        #splash-logo {
-            font-size: 72px;
-            font-weight: bold;
-            color: #FF6B6B;
-            text-shadow: 4px 4px 8px rgba(0,0,0,0.5);
-            margin-bottom: 20px;
+
+        #loading-container {
+            position: absolute;
+            top: 55%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 830px;
+            height: 100px;
+            background: url('assets/images/loading_bar3.png') no-repeat center;
+            background-size: contain;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        #splash-subtitle {
-            font-size: 28px;
-            color: #00D4FF;
-            margin-bottom: 60px;
-        }
-
-        #splash-loader {
-            width: 400px;
-            height: 8px;
-            background: #333;
-            border-radius: 4px;
+        #loading-fill {
+            position: absolute;
+            left: 25px;
+            height: 50px;
+            width: 0%;
+            background: linear-gradient(180deg, #ff9d00 0%, #ff6b00 100%);
+            border-radius: 13px;
+            box-shadow: inset 0 2px 5px rgba(255, 255, 255, 0.4),
+                0 0 15px rgba(255, 107, 0, 0.6);
+            transition: width 0.2s ease-out;
             overflow: hidden;
         }
 
-        #splash-progress {
-            width: 0%;
+        #loading-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, #FF6B6B, #FFD700);
-            border-radius: 4px;
-            transition: width 0.3s ease;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            100% {
+                left: 100%;
+            }
+        }
+
+        #loading-label {
+            position: relative;
+            z-index: 1001;
+            font-size: 32px;
+            color: white;
+            text-shadow: 2px 2px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000;
+            letter-spacing: 2px;
         }
 
         #splash-status {
-            margin-top: 20px;
-            font-size: 18px;
-            color: #888;
+            position: absolute;
+            top: calc(55% + 70px);
+            font-size: 64px;
+            color: #e4c900;
+            text-transform: uppercase;
+            text-shadow: 4px 4px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000, 4px 0px 0px #000, -4px 0px 0px #000, 0px 4px 0px #000, 0px -4px 0px #000;
+            letter-spacing: 6px;
         }
 
         #glcanvas {
@@ -83,49 +121,50 @@
             height: 1080px;
             z-index: 1;
         }
-
-        #debug-overlay {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            padding: 10px;
-            background: rgba(0,0,0,0.7);
-            color: #0f0;
-            font-family: monospace;
-            font-size: 14px;
-            z-index: 2000;
-            display: none;
-        }
-
-        #debug-overlay.visible {
-            display: block;
-        }
     </style>
 </head>
+
 <body>
     <div id="splash">
-        <div id="splash-logo">TOON DASH</div>
-        <div id="splash-subtitle">TV Edition</div>
-        <div id="splash-loader">
-            <div id="splash-progress"></div>
+
+        <div id="loading-container">
+            <div id="loading-fill"></div>
+            <div id="loading-label">0%</div>
         </div>
+
         <div id="splash-status">Initializing...</div>
     </div>
 
     <canvas id="glcanvas" tabindex="1" width="1920" height="1080"></canvas>
 
-    <div id="debug-overlay">
-        <div id="debug-platform">Platform: Detecting...</div>
-        <div id="debug-memory">Memory: --</div>
-        <div id="debug-fps">FPS: --</div>
-    </div>
-
     <script src="https://not-fl3.github.io/miniquad-samples/mq_js_bundle.js"></script>
-    <script>
-        load("toon-dash.wasm");
 
-        // Hide splash screen after the game bundle has had a moment to initialize
-        setTimeout(function () {
+    <script>
+        window.mq_save_highscore = function (score) {
+            localStorage.setItem('toon_dash_high_score', score);
+        };
+        window.mq_load_highscore = function () {
+            var score = localStorage.getItem('toon_dash_high_score');
+            return score ? parseInt(score) : 0;
+        };
+
+        window.mq_set_progress = function (percent) {
+            var fill = document.getElementById("loading-fill");
+            var label = document.getElementById("loading-label");
+            var status = document.getElementById("splash-status");
+
+            if (fill) fill.style.width = (percent * 0.94) + "%";
+            if (label) label.textContent = Math.round(percent) + "%";
+
+            if (status) {
+                if (percent >= 100) status.textContent = "READY!";
+                else if (percent > 90) status.textContent = "Preparing character...";
+                else if (percent > 40) status.textContent = "Loading models...";
+                else if (percent > 10) status.textContent = "Connecting to engine...";
+            }
+        };
+
+        window.mq_hide_splash = function () {
             var splash = document.getElementById("splash");
             if (splash) {
                 splash.classList.add("hidden");
@@ -134,7 +173,24 @@
             if (canvas) {
                 canvas.focus();
             }
-        }, 1500); 
+        };
+
+        // Note: The function MUST be named 'register_plugin'
+        var ToonDashPlugin = {
+            register_plugin: function (importObject) {
+                importObject.env.mq_save_highscore = window.mq_save_highscore;
+                importObject.env.mq_load_highscore = window.mq_load_highscore;
+                importObject.env.mq_set_progress = window.mq_set_progress;
+                importObject.env.mq_hide_splash = window.mq_hide_splash;
+            }
+        };
+
+        // Register it passing ONLY the object
+        miniquad_add_plugin(ToonDashPlugin);
+
+        // 3. Finally, load the WASM module
+        load("toon-dash.wasm");
     </script>
 </body>
+
 </html>

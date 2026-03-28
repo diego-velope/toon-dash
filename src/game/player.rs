@@ -20,6 +20,7 @@ pub struct Player {
     pub slide_progress: f32,
     pub target_lane: Lane,
     pub lane_change_progress: f32,
+    pub animation_tick: f32,
 }
 
 impl Default for Player {
@@ -33,6 +34,7 @@ impl Default for Player {
             slide_progress: 0.0,
             target_lane: Lane::Center,
             lane_change_progress: 1.0,
+            animation_tick: 0.0,
         }
     }
 }
@@ -94,15 +96,16 @@ impl Player {
         false
     }
 
-    pub fn update(&mut self, delta_time: f32, config: &GameConfig) {
-        self.distance_traveled += config.player_speed * delta_time;
+    pub fn update(&mut self, world_dt: f32, anim_dt: f32, config: &GameConfig) {
+        self.distance_traveled += config.player_speed * world_dt;
         // ── FIX: keep position.z in sync with distance traveled ──────────
         // Camera follows position.z — without this it stays at 0.0 forever.
         self.position.z = self.distance_traveled;
+        self.animation_tick += anim_dt;
 
         match self.state {
             PlayerState::Jumping => {
-                self.jump_progress += delta_time / config.jump_duration;
+                self.jump_progress += anim_dt / config.jump_duration;
                 if self.jump_progress >= 1.0 {
                     self.jump_progress = 0.0;
                     self.state = PlayerState::Running;
@@ -123,7 +126,7 @@ impl Player {
                 }
             }
             PlayerState::Sliding => {
-                self.slide_progress += delta_time / config.slide_duration;
+                self.slide_progress += anim_dt / config.slide_duration;
                 if self.slide_progress >= 1.0 {
                     self.slide_progress = 0.0;
                     self.state = PlayerState::Running;
@@ -134,7 +137,7 @@ impl Player {
 
         // Lane change interpolation
         if self.lane_change_progress < 1.0 {
-            self.lane_change_progress += delta_time * 5.0; // adjust speed as needed
+            self.lane_change_progress += world_dt * 5.0; // adjust speed as needed
             if self.lane_change_progress >= 1.0 {
                 self.lane_change_progress = 1.0;
                 self.lane = self.target_lane;

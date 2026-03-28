@@ -44,7 +44,7 @@ async fn main() {
     let mut player = Player::new();
     let mut track = Track::new();
     let mut obstacle_manager = ObstacleManager::new();
-    let mut coin_manager = CoinManager::new();
+    let mut collectible_manager = CollectibleManager::new();
     let mut renderer = GameRenderer::new();
 
     // Menu state
@@ -52,16 +52,22 @@ async fn main() {
     let mut pause_nav = MenuNavigator::pause_menu();
     let mut gameover_nav = MenuNavigator::game_over_menu();
     let mut sub_screen = MenuSubScreen::None;
-    let mut audio = AudioSettings::default();
+    let mut game_settings = GameSettings::default();
     let mut character_choice = CharacterChoice::default();
     let mut select_char_focused = false;
 
     // Load models and audio
     info!("Loading assets...");
+    toon_dash::game::loading::set_progress(10.0);
     renderer.load_models().await;
-    let bgm = load_sound("audio/toon_dash_background_music.wav")
+    toon_dash::game::loading::set_progress(90.0);
+    let bgm = load_sound("audio/chasing_rocket_turtle_instrumental.wav")
         .await
         .expect("Failed to load background music");
+    let coin_sfx = load_sound("audio/coin_collect.wav")
+        .await
+        .expect("Failed to load coin sound");
+    toon_dash::game::loading::set_progress(100.0);
     info!("Assets loaded!");
 
     // Start background music
@@ -74,6 +80,7 @@ async fn main() {
         },
     );
 
+    toon_dash::game::loading::hide_splash();
     let mut last_time = get_time();
 
     loop {
@@ -84,8 +91,14 @@ async fn main() {
         // Process input
         input.update();
 
+        // Progressive game speed scaling: base speed + 1.0 per 5000 score
+        let speed_multiplier = 1.0 + (game_state.score / 5000.0);
+        let total_speed = game_settings.speed_f32() * speed_multiplier;
+        let scaled_dt = dt * total_speed;
+
         // Update audio volume dynamically based on logic: min(master, music)
-        let effective_vol = audio.master_volume.min(audio.music_volume) as f32 / 10.0;
+        let effective_vol =
+            game_settings.master_volume.min(game_settings.music_volume) as f32 / 10.0;
         set_sound_volume(&bgm, effective_vol);
 
         // Handle game logic based on current screen
@@ -118,7 +131,7 @@ async fn main() {
                                         player.reset();
                                         track.reset();
                                         obstacle_manager.reset();
-                                        coin_manager.reset();
+                                        collectible_manager.reset();
                                         menu_nav = MenuNavigator::main_menu();
                                         renderer.set_active_character(&character_choice);
                                         renderer.snap_camera(
@@ -152,46 +165,66 @@ async fn main() {
                         }
                     }
 
-                    // ── Options overlay (volume control) ─────────────────
+                    // ── Options overlay (volume & speed control) ───────────────
                     MenuSubScreen::Options => {
                         if input.is_back_just_pressed() {
                             sub_screen = MenuSubScreen::None;
                         }
                         if input.is_up_just_pressed() {
-                            if audio.focused_row > 0 {
-                                audio.focused_row -= 1;
+                            if game_settings.focused_row > 0 {
+                                game_settings.focused_row -= 1;
                             }
                         }
                         if input.is_down_just_pressed() {
-                            if audio.focused_row < 1 {
-                                audio.focused_row += 1;
+                            if game_settings.focused_row < 3 {
+                                game_settings.focused_row += 1;
                             }
                         }
                         if input.is_left_just_pressed() {
-                            match audio.focused_row {
+                            match game_settings.focused_row {
                                 0 => {
-                                    if audio.master_volume > 0 {
-                                        audio.master_volume -= 1;
+                                    if game_settings.master_volume > 0 {
+                                        game_settings.master_volume -= 1;
                                     }
                                 }
                                 1 => {
-                                    if audio.music_volume > 0 {
-                                        audio.music_volume -= 1;
+                                    if game_settings.music_volume > 0 {
+                                        game_settings.music_volume -= 1;
+                                    }
+                                }
+                                2 => {
+                                    if game_settings.effects_volume > 0 {
+                                        game_settings.effects_volume -= 1;
+                                    }
+                                }
+                                3 => {
+                                    if game_settings.game_speed > 1 {
+                                        game_settings.game_speed -= 1;
                                     }
                                 }
                                 _ => {}
                             }
                         }
                         if input.is_right_just_pressed() {
-                            match audio.focused_row {
+                            match game_settings.focused_row {
                                 0 => {
-                                    if audio.master_volume < 10 {
-                                        audio.master_volume += 1;
+                                    if game_settings.master_volume < 10 {
+                                        game_settings.master_volume += 1;
                                     }
                                 }
                                 1 => {
-                                    if audio.music_volume < 10 {
-                                        audio.music_volume += 1;
+                                    if game_settings.music_volume < 10 {
+                                        game_settings.music_volume += 1;
+                                    }
+                                }
+                                2 => {
+                                    if game_settings.effects_volume < 10 {
+                                        game_settings.effects_volume += 1;
+                                    }
+                                }
+                                3 => {
+                                    if game_settings.game_speed < 10 {
+                                        game_settings.game_speed += 1;
                                     }
                                 }
                                 _ => {}
@@ -231,7 +264,7 @@ async fn main() {
                     game_state.pause();
                 }
 
-                player.update(dt, &config);
+                player.update(scaled_dt, dt, &config);
 
                 // Update track
                 track.update(player.distance_traveled, &config);
@@ -244,8 +277,8 @@ async fn main() {
 
                 let coin_zones =
                     track.get_coin_zones(player.distance_traveled, config.spawn_distance);
-                coin_manager.spawn_from_segments(&coin_zones, &config);
-                coin_manager.update(player.distance_traveled, &config);
+                collectible_manager.spawn_from_segments(&coin_zones, &config);
+                collectible_manager.update(player.distance_traveled, &config);
 
                 // Check collisions
                 let player_bbox = player.get_bounding_box();
@@ -260,41 +293,136 @@ async fn main() {
                     gameover_nav = MenuNavigator::game_over_menu();
                 }
 
-                // Check coin collection
-                let coins = coin_manager.check_collection(
+                // Check collectible collection
+                let (coins, jewels) = collectible_manager.check_collection(
                     player.lane,
                     player.position.y,
                     player.distance_traveled,
                 );
+
+                if coins > 0 || jewels > 0 {
+                    let sfx_vol = game_settings
+                        .master_volume
+                        .min(game_settings.effects_volume) as f32
+                        / 10.0;
+                    play_sound(
+                        &coin_sfx,
+                        PlaySoundParams {
+                            looped: false,
+                            volume: sfx_vol,
+                        },
+                    );
+
+                    for _ in 0..coins {
+                        game_state.add_collectible_points(false);
+                    }
+                    for _ in 0..jewels {
+                        game_state.add_collectible_points(true);
+                    }
+                }
+
                 game_state.update_score(
+                    scaled_dt,
                     player.distance_traveled,
                     game_state.coins + coins,
-                    &config,
                 );
             }
             GameScreen::Paused => {
-                if input.is_up_just_pressed() {
-                    pause_nav.up();
-                }
-                if input.is_down_just_pressed() {
-                    pause_nav.down();
-                }
-                if input.is_action_just_pressed() {
-                    match pause_nav.current() {
-                        PauseOption::Resume => {
-                            game_state.resume();
+                // If the options menu is open, capture input exclusively for it
+                if sub_screen == MenuSubScreen::Options {
+                    if input.is_back_just_pressed()
+                        || input.is_action_just_pressed() && game_settings.focused_row == 4
+                    {
+                        // We will add a "Back" button at row 4 or just use ECS/Back button
+                        sub_screen = MenuSubScreen::None;
+                    }
+                    if input.is_up_just_pressed() {
+                        if game_settings.focused_row > 0 {
+                            game_settings.focused_row -= 1;
                         }
-                        PauseOption::Restart => {
-                            game_state.start_game();
-                            player.reset();
-                            track.reset();
-                            obstacle_manager.reset();
-                            coin_manager.reset();
-                            pause_nav = MenuNavigator::pause_menu();
+                    }
+                    if input.is_down_just_pressed() {
+                        if game_settings.focused_row < 3 {
+                            game_settings.focused_row += 1;
                         }
-                        PauseOption::Quit => {
-                            game_state.return_to_menu();
-                            menu_nav = MenuNavigator::main_menu();
+                    }
+                    if input.is_left_just_pressed() {
+                        match game_settings.focused_row {
+                            0 => {
+                                if game_settings.master_volume > 0 {
+                                    game_settings.master_volume -= 1;
+                                }
+                            }
+                            1 => {
+                                if game_settings.music_volume > 0 {
+                                    game_settings.music_volume -= 1;
+                                }
+                            }
+                            2 => {
+                                if game_settings.effects_volume > 0 {
+                                    game_settings.effects_volume -= 1;
+                                }
+                            }
+                            3 => {
+                                if game_settings.game_speed > 1 {
+                                    game_settings.game_speed -= 1;
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    if input.is_right_just_pressed() {
+                        match game_settings.focused_row {
+                            0 => {
+                                if game_settings.master_volume < 10 {
+                                    game_settings.master_volume += 1;
+                                }
+                            }
+                            1 => {
+                                if game_settings.music_volume < 10 {
+                                    game_settings.music_volume += 1;
+                                }
+                            }
+                            2 => {
+                                if game_settings.effects_volume < 10 {
+                                    game_settings.effects_volume += 1;
+                                }
+                            }
+                            3 => {
+                                if game_settings.game_speed < 10 {
+                                    game_settings.game_speed += 1;
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                } else {
+                    if input.is_up_just_pressed() {
+                        pause_nav.up();
+                    }
+                    if input.is_down_just_pressed() {
+                        pause_nav.down();
+                    }
+                    if input.is_action_just_pressed() {
+                        match pause_nav.current() {
+                            PauseOption::Resume => {
+                                game_state.resume();
+                            }
+                            PauseOption::Restart => {
+                                game_state.start_game();
+                                player.reset();
+                                track.reset();
+                                obstacle_manager.reset();
+                                collectible_manager.reset();
+                                pause_nav = MenuNavigator::pause_menu();
+                            }
+                            PauseOption::Options => {
+                                sub_screen = MenuSubScreen::Options;
+                            }
+                            PauseOption::Quit => {
+                                game_state.return_to_menu();
+                                menu_nav = MenuNavigator::main_menu();
+                            }
                         }
                     }
                 }
@@ -313,7 +441,7 @@ async fn main() {
                             player.reset();
                             track.reset();
                             obstacle_manager.reset();
-                            coin_manager.reset();
+                            collectible_manager.reset();
                             gameover_nav = MenuNavigator::game_over_menu();
                         }
                         GameOverOption::Quit => {
@@ -334,12 +462,12 @@ async fn main() {
             &track,
             &player,
             &obstacle_manager,
-            &coin_manager,
+            &collectible_manager,
             &menu_nav,
             &pause_nav,
             &gameover_nav,
             &sub_screen,
-            &audio,
+            &game_settings,
             &character_choice,
             select_char_focused,
         );

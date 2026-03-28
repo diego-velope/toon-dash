@@ -1,16 +1,22 @@
 //! Game logic modules for Toon Dash
 
-mod player;
-mod track;
-mod obstacles;
-mod coins;
-mod state;
-mod types;
+mod collectibles;
+pub mod loading;
+pub mod obstacles;
+pub mod persistence;
+pub mod player;
+pub mod state;
+pub mod track;
+pub mod types;
 
 // Re-export everything
+pub use persistence::{load_highscore, save_highscore};
+pub use collectibles::{Collectible, CollectibleManager, CollectibleType};
+pub use obstacles::{Obstacle, ObstacleManager, ObstacleType};
 pub use player::{Player, PlayerState};
-pub use track::{Track, TrackSegment, SegmentType};
-pub use obstacles::{Obstacle, ObstacleType, ObstacleManager};
-pub use coins::{Coin, CoinManager};
-pub use state::{GameState, GameScreen, MenuOption, PauseOption, GameOverOption, MenuNavigator, MenuSubScreen, AudioSettings, CharacterChoice};
-pub use types::{Lane, Position3D, BoundingBox, GameConfig};
+pub use state::{
+    CharacterChoice, GameOverOption, GameScreen, GameSettings, GameState, MenuNavigator,
+    MenuOption, MenuSubScreen, PauseOption,
+};
+pub use track::{SegmentType, Track, TrackSegment};
+pub use types::{BoundingBox, GameConfig, Lane, Position3D};

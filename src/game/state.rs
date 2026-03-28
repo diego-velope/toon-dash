@@ -1,7 +1,5 @@
 //! Game State Management for Toon Dash
 
-use super::types::GameConfig;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GameScreen {
     MainMenu,
@@ -24,28 +22,34 @@ pub enum MenuSubScreen {
     CharacterSelect,
 }
 
-// ── Audio settings (master + music volume 0-10) ─────────────────────────
+// ── Game Settings (volume & speed controllers) ─────────────────────────
 #[derive(Debug, Clone)]
-pub struct AudioSettings {
+pub struct GameSettings {
     pub master_volume: u8,
     pub music_volume: u8,
-    /// Which row is focused in the options panel (0 = master, 1 = music)
+    pub effects_volume: u8,
+    pub game_speed: u8,
+    /// Which row is focused in the options panel (0 = master, 1 = music, 2 = effects, 3 = speed)
     pub focused_row: usize,
 }
 
-impl Default for AudioSettings {
+impl Default for GameSettings {
     fn default() -> Self {
         Self {
-            master_volume: 10,
+            master_volume: 5, // user initially set default master to 50%
             music_volume: 10,
+            effects_volume: 10,
+            game_speed: 10, // 10 = 1.0x (100%)
             focused_row: 0,
         }
     }
 }
 
-impl AudioSettings {
+impl GameSettings {
     pub fn master_f32(&self) -> f32 { self.master_volume as f32 / 10.0 }
     pub fn music_f32(&self)  -> f32 { self.music_volume  as f32 / 10.0 }
+    pub fn effects_f32(&self) -> f32 { self.effects_volume as f32 / 10.0 }
+    pub fn speed_f32(&self) -> f32 { self.game_speed as f32 / 10.0 }
 }
 
 // ── Selectable characters ───────────────────────────────────────────────
@@ -113,32 +117,42 @@ impl CharacterChoice {
 #[derive(Debug, Clone)]
 pub struct GameState {
     pub screen: GameScreen,
-    pub score: u32,
-    pub high_score: u32,
+    pub score: f32,
+    pub high_score: f32,
     pub distance: f32,
     pub coins: u32,
+    pub combo: u32,
+    pub combo_anim_timer: f32,
 }
 
 impl Default for GameState {
     fn default() -> Self {
         Self {
             screen: GameScreen::MainMenu,
-            score: 0,
-            high_score: 0,
+            score: 0.0,
+            high_score: 0.0,
             distance: 0.0,
             coins: 0,
+            combo: 1,
+            combo_anim_timer: 0.0,
         }
     }
 }
 
 impl GameState {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        let mut state = Self::default();
+        state.high_score = super::persistence::load_highscore() as f32;
+        state
+    }
 
     pub fn start_game(&mut self) {
         self.screen = GameScreen::Playing;
-        self.score = 0;
+        self.score = 0.0;
         self.distance = 0.0;
         self.coins = 0;
+        self.combo = 1;
+        self.combo_anim_timer = 0.0;
     }
 
     pub fn pause(&mut self) {
@@ -157,6 +171,7 @@ impl GameState {
         self.screen = GameScreen::GameOver;
         if self.score > self.high_score {
             self.high_score = self.score;
+            super::persistence::save_highscore(self.high_score as u32);
         }
     }
 
@@ -164,10 +179,31 @@ impl GameState {
         self.screen = GameScreen::MainMenu;
     }
 
-    pub fn update_score(&mut self, distance: f32, coins: u32, config: &GameConfig) {
+    pub fn update_score(&mut self, dt: f32, distance: f32, coins: u32) {
+        let prev_dist = self.distance;
         self.distance = distance;
         self.coins = coins;
-        self.score = (distance as u32) + (coins * config.coin_value);
+
+        // Points from distance traveled, multiplied by combo
+        let dist_diff = self.distance - prev_dist;
+        if dist_diff > 0.0 {
+            self.score += dist_diff * self.combo as f32;
+        }
+
+        // Update animation timer
+        if self.combo_anim_timer > 0.0 {
+            self.combo_anim_timer -= dt;
+        }
+    }
+
+    pub fn add_collectible_points(&mut self, is_jewel: bool) {
+        if is_jewel {
+            self.score += 200.0;
+            self.combo += 1;
+            self.combo_anim_timer = 0.8; // Trigger animation
+        } else {
+            self.score += 100.0; // Coin is always 100 flat
+        }
     }
 
     pub fn is_playing(&self) -> bool { self.screen == GameScreen::Playing }
@@ -189,6 +225,7 @@ pub enum PauseOption {
     #[default]
     Resume,
     Restart,
+    Options,
     Quit,
 }
 
@@ -234,7 +271,12 @@ impl MenuNavigator<MenuOption> {
 
 impl MenuNavigator<PauseOption> {
     pub fn pause_menu() -> Self {
-        Self::new(vec![PauseOption::Resume, PauseOption::Restart, PauseOption::Quit])
+        Self::new(vec![
+            PauseOption::Resume,
+            PauseOption::Restart,
+            PauseOption::Options,
+            PauseOption::Quit,
+        ])
     }
 }
 
