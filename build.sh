@@ -33,7 +33,7 @@ check_requirements() {
 
 build_wasm() {
     echo -e "${YELLOW}Building WASM...${NC}"
-    cargo build --release --target wasm32-unknown-unknown
+    RUSTFLAGS="-C target-feature=-nontrapping-fptoint,-simd128,-relaxed-simd,-bulk-memory" cargo build --release --target wasm32-unknown-unknown
     echo -e "${GREEN}WASM build complete${NC}"
 }
 
