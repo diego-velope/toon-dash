@@ -140,7 +140,6 @@
     <script src="mq_js_bundle.js"></script>
 
     <script>
-        // --- Game Progress & Persistence ---
         window.mq_save_highscore = function (score) {
             localStorage.setItem('toon_dash_high_score', score);
         };
@@ -176,6 +175,7 @@
             }
         };
 
+
         // --- TV Platform Key Normalization ---
         window.addEventListener("keydown", function (e) {
             if (e.__is_normalized) return;
@@ -209,10 +209,10 @@
 
         // --- Audio Visibility Handler (FireTV Home Button Fix) ---
         var audioContexts = [];
-        (function() {
+        (function () {
             var OldAudioContext = window.AudioContext || window.webkitAudioContext;
             if (OldAudioContext) {
-                window.AudioContext = window.webkitAudioContext = function() {
+                window.AudioContext = window.webkitAudioContext = function () {
                     var ctx = new OldAudioContext();
                     audioContexts.push(ctx);
                     return ctx;
@@ -220,9 +220,9 @@
             }
         })();
 
-        document.addEventListener("visibilitychange", function() {
+        document.addEventListener("visibilitychange", function () {
             console.log("Visibility changed to: " + document.visibilityState);
-            audioContexts.forEach(function(ctx) {
+            audioContexts.forEach(function (ctx) {
                 if (document.visibilityState === 'hidden') {
                     ctx.suspend();
                 } else if (document.visibilityState === 'visible') {
@@ -231,7 +231,7 @@
             });
         });
 
-        // --- Miniquad Plugin Registration ---
+        // Note: The function MUST be named 'register_plugin'
         var ToonDashPlugin = {
             register_plugin: function (importObject) {
                 importObject.env.mq_save_highscore = window.mq_save_highscore;
@@ -241,6 +241,7 @@
             }
         };
 
+        // Register it passing ONLY the object
         miniquad_add_plugin(ToonDashPlugin);
 
         // 3. Finally, load the WASM module
