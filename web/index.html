@@ -140,6 +140,42 @@
     <script src="https://not-fl3.github.io/miniquad-samples/mq_js_bundle.js"></script>
 
     <script>
+        // --- Game Progress & Persistence ---
+        window.mq_save_highscore = function (score) {
+            localStorage.setItem('toon_dash_high_score', score);
+        };
+        window.mq_load_highscore = function () {
+            var score = localStorage.getItem('toon_dash_high_score');
+            return score ? parseInt(score) : 0;
+        };
+
+        window.mq_set_progress = function (percent) {
+            var fill = document.getElementById("loading-fill");
+            var label = document.getElementById("loading-label");
+            var status = document.getElementById("splash-status");
+
+            if (fill) fill.style.width = (percent * 0.94) + "%";
+            if (label) label.textContent = Math.round(percent) + "%";
+
+            if (status) {
+                if (percent >= 100) status.textContent = "READY!";
+                else if (percent > 90) status.textContent = "Preparing character...";
+                else if (percent > 40) status.textContent = "Loading models...";
+                else if (percent > 10) status.textContent = "Connecting to engine...";
+            }
+        };
+
+        window.mq_hide_splash = function () {
+            var splash = document.getElementById("splash");
+            if (splash) {
+                splash.classList.add("hidden");
+            }
+            var canvas = document.getElementById("glcanvas");
+            if (canvas) {
+                canvas.focus();
+            }
+        };
+
         // --- TV Platform Key Normalization ---
         window.addEventListener("keydown", function (e) {
             if (e.__is_normalized) return;
@@ -194,6 +230,18 @@
                 }
             });
         });
+
+        // --- Miniquad Plugin Registration ---
+        var ToonDashPlugin = {
+            register_plugin: function (importObject) {
+                importObject.env.mq_save_highscore = window.mq_save_highscore;
+                importObject.env.mq_load_highscore = window.mq_load_highscore;
+                importObject.env.mq_set_progress = window.mq_set_progress;
+                importObject.env.mq_hide_splash = window.mq_hide_splash;
+            }
+        };
+
+        miniquad_add_plugin(ToonDashPlugin);
 
         // 3. Finally, load the WASM module
         load("toon-dash.wasm");
