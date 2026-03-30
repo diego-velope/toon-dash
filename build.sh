@@ -32,8 +32,9 @@ check_requirements() {
 }
 
 build_wasm() {
-    echo -e "${YELLOW}Building WASM...${NC}"
-    RUSTFLAGS="-C target-feature=-nontrapping-fptoint,-simd128,-relaxed-simd,-bulk-memory" cargo build --release --target wasm32-unknown-unknown
+    echo -e "${YELLOW}Building WASM (Conservative MVP)...${NC}"
+    # target-cpu=mvp is the safest way to disable ALL modern opcodes for older TVs (Tizen 5.5 / Chrome 69)
+    RUSTFLAGS="-C target-cpu=mvp -C target-feature=-nontrapping-fptoint" cargo build --release --target wasm32-unknown-unknown
     echo -e "${GREEN}WASM build complete${NC}"
 }
 
@@ -51,7 +52,7 @@ package_dist() {
     cp -r "assets" "$DIST_DIR/"
 
     if command -v wasm-opt &> /dev/null; then
-        wasm-opt -Oz --disable-sat-f2i-conversions --disable-simd --disable-bulk-memory --disable-sign-ext -o "$DIST_DIR/toon-dash.wasm" "$DIST_DIR/toon-dash.wasm"
+        wasm-opt -Oz --disable-nontrapping-float-to-int --disable-simd --disable-relaxed-simd --disable-bulk-memory --disable-sign-ext -o "$DIST_DIR/toon-dash.wasm" "$DIST_DIR/toon-dash.wasm"
     fi
 
     echo ""
