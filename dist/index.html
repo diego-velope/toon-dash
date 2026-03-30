@@ -241,11 +241,23 @@
             }
         };
 
-        // Register it passing ONLY the object
-        miniquad_add_plugin(ToonDashPlugin);
+        // Wait for the entire page (and mq_js_bundle.js) to be fully loaded and parsed
+        window.addEventListener('load', function () {
+            console.log("Page loaded, initializing engine...");
 
-        // 3. Finally, load the WASM module
-        load("toon-dash.wasm");
+            var status = document.getElementById("splash-status");
+
+            // Safety check: Did the bundle actually load?
+            if (typeof miniquad_add_plugin === "undefined" || typeof load === "undefined") {
+                console.error("FATAL: mq_js_bundle.js failed to execute.");
+                if (status) status.textContent = "Error: Engine script failed.";
+                return;
+            }
+
+            // Register plugin and load WASM
+            miniquad_add_plugin(ToonDashPlugin);
+            load("toon-dash.wasm");
+        });
     </script>
 </body>
 
