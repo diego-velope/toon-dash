@@ -51,7 +51,7 @@ package_dist() {
     cp -r "assets" "$DIST_DIR/"
 
     if command -v wasm-opt &> /dev/null; then
-        wasm-opt -Oz -o "$DIST_DIR/toon-dash.wasm" "$DIST_DIR/toon-dash.wasm"
+        wasm-opt -Oz --disable-sat-f2i-conversions --disable-simd --disable-bulk-memory --disable-sign-ext -o "$DIST_DIR/toon-dash.wasm" "$DIST_DIR/toon-dash.wasm"
     fi
 
     echo ""
