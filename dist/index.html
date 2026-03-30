@@ -137,7 +137,7 @@
 
     <canvas id="glcanvas" tabindex="1" width="1920" height="1080"></canvas>
 
-    <script src="https://not-fl3.github.io/miniquad-samples/mq_js_bundle.js"></script>
+    <script src="mq_js_bundle.js"></script>
 
     <script>
         window.mq_save_highscore = function (score) {
@@ -174,6 +174,62 @@
                 canvas.focus();
             }
         };
+
+
+        // --- TV Platform Key Normalization ---
+        window.addEventListener("keydown", function (e) {
+            if (e.__is_normalized) return;
+            var key = e.keyCode || e.which;
+            var translatedKey = null;
+            var translatedCode = null;
+
+            // Normalized mappings based on .cursorrules/tv-platform-html5-keycodes.mdc
+            if (key === 10009 || key === 461) { // Tizen Back / webOS Back
+                translatedKey = "Backspace";
+                translatedCode = 8;
+            } else if (key === 23) { // FireTV Select / DPAD_CENTER
+                translatedKey = "Enter";
+                translatedCode = 13;
+            }
+
+            if (translatedKey) {
+                console.log("TV Bridge: Normalizing key " + key + " -> " + translatedKey);
+                var normalizedEvent = new KeyboardEvent("keydown", {
+                    key: translatedKey,
+                    keyCode: translatedCode,
+                    which: translatedCode,
+                    bubbles: true,
+                    cancelable: true
+                });
+                normalizedEvent.__is_normalized = true;
+                e.target.dispatchEvent(normalizedEvent);
+                e.preventDefault();
+            }
+        }, true);
+
+        // --- Audio Visibility Handler (FireTV Home Button Fix) ---
+        var audioContexts = [];
+        (function () {
+            var OldAudioContext = window.AudioContext || window.webkitAudioContext;
+            if (OldAudioContext) {
+                window.AudioContext = window.webkitAudioContext = function () {
+                    var ctx = new OldAudioContext();
+                    audioContexts.push(ctx);
+                    return ctx;
+                };
+            }
+        })();
+
+        document.addEventListener("visibilitychange", function () {
+            console.log("Visibility changed to: " + document.visibilityState);
+            audioContexts.forEach(function (ctx) {
+                if (document.visibilityState === 'hidden') {
+                    ctx.suspend();
+                } else if (document.visibilityState === 'visible') {
+                    ctx.resume();
+                }
+            });
+        });
 
         // Note: The function MUST be named 'register_plugin'
         var ToonDashPlugin = {
