@@ -139,6 +139,7 @@ pub fn get_tv_input_manager_mut() -> Option<&'static mut TvInputManager> {
 
 #[cfg(target_arch = "wasm32")]
 #[no_mangle]
+#[export_name = "mq_handle_up"]
 pub extern "C" fn mq_handle_up(pressed: i32) {
     unsafe {
         if let Some(manager) = TV_INPUT_MANAGER.as_mut() {
@@ -149,6 +150,7 @@ pub extern "C" fn mq_handle_up(pressed: i32) {
 
 #[cfg(target_arch = "wasm32")]
 #[no_mangle]
+#[export_name = "mq_handle_down"]
 pub extern "C" fn mq_handle_down(pressed: i32) {
     unsafe {
         if let Some(manager) = TV_INPUT_MANAGER.as_mut() {
@@ -159,6 +161,7 @@ pub extern "C" fn mq_handle_down(pressed: i32) {
 
 #[cfg(target_arch = "wasm32")]
 #[no_mangle]
+#[export_name = "mq_handle_left"]
 pub extern "C" fn mq_handle_left(pressed: i32) {
     unsafe {
         if let Some(manager) = TV_INPUT_MANAGER.as_mut() {
@@ -169,6 +172,7 @@ pub extern "C" fn mq_handle_left(pressed: i32) {
 
 #[cfg(target_arch = "wasm32")]
 #[no_mangle]
+#[export_name = "mq_handle_right"]
 pub extern "C" fn mq_handle_right(pressed: i32) {
     unsafe {
         if let Some(manager) = TV_INPUT_MANAGER.as_mut() {
@@ -179,6 +183,7 @@ pub extern "C" fn mq_handle_right(pressed: i32) {
 
 #[cfg(target_arch = "wasm32")]
 #[no_mangle]
+#[export_name = "mq_handle_action"]
 pub extern "C" fn mq_handle_action(pressed: i32) {
     unsafe {
         if let Some(manager) = TV_INPUT_MANAGER.as_mut() {
@@ -189,6 +194,7 @@ pub extern "C" fn mq_handle_action(pressed: i32) {
 
 #[cfg(target_arch = "wasm32")]
 #[no_mangle]
+#[export_name = "mq_handle_back"]
 pub extern "C" fn mq_handle_back(pressed: i32) {
     unsafe {
         if let Some(manager) = TV_INPUT_MANAGER.as_mut() {

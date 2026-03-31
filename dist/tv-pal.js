@@ -100,6 +100,11 @@ const TV_PAL = (function() {
      * Uses multiple methods: window APIs, user-agent, feature detection
      */
     function detectPlatform() {
+        const ua = navigator.userAgent.toLowerCase();
+
+        // Log user agent for debugging
+        console.log('[TV-PAL] User Agent:', ua);
+
         // Check for Tizen first (Samsung)
         if (window.tizen) {
             console.log('[TV-PAL] Detected: Samsung Tizen');
@@ -112,22 +117,34 @@ const TV_PAL = (function() {
             return Platform.WEBOS;
         }
 
-        // Check user agent for specific platforms
-        const ua = navigator.userAgent.toLowerCase();
-
-        if (ua.includes('vizio')) {
-            console.log('[TV-PAL] Detected: Vizio');
-            return Platform.VIZIO;
+        // Check for Chromecast with Google TV
+        // Chromecast user agent contains "chromecast" and is Android-based
+        if (ua.includes('chromecast') ||
+            (ua.includes('android') && ua.includes('aarch64'))) {
+            console.log('[TV-PAL] Detected: Chromecast with Google TV');
+            return Platform.ANDROID_TV; // Chromecast uses Android TV keycodes
         }
 
-        if (ua.includes('aft') || ua.includes('fire tv') || ua.includes('silk')) {
-            console.log('[TV-PAL] Detected: Amazon Fire TV');
+        // Check for Android TV / Fire TV
+        // AFT = Amazon Fire TV, Nexus Player = Android TV
+        if (ua.includes('aft') ||
+            ua.includes('fire') ||
+            ua.includes('silk') ||
+            (ua.includes('android') && (ua.includes('tv') || ua.includes('aftn')))) {
+            console.log('[TV-PAL] Detected: Amazon Fire TV / Android TV');
             return Platform.FIRETV;
         }
 
-        if (ua.includes('android') && (ua.includes('tv') || ua.includes('aft'))) {
+        // Generic Android TV detection
+        if (ua.includes('android') && (ua.includes('tv') || ua.includes('nexus player'))) {
             console.log('[TV-PAL] Detected: Android TV');
             return Platform.ANDROID_TV;
+        }
+
+        // Check for Vizio
+        if (ua.includes('vizio')) {
+            console.log('[TV-PAL] Detected: Vizio');
+            return Platform.VIZIO;
         }
 
         // Default to browser (for desktop testing)
