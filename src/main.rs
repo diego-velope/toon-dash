@@ -37,6 +37,10 @@ async fn main() {
 
     info!("Starting Toon Dash...");
 
+    // Initialize TV Input Manager for WASM builds
+    #[cfg(target_arch = "wasm32")]
+    toon_dash::tv_input_manager::init_tv_input_manager();
+
     // Initialize game systems
     let config = GameConfig::default();
     let mut input = TvInput::new();

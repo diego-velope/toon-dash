@@ -137,6 +137,9 @@
 
     <canvas id="glcanvas" tabindex="1" width="1920" height="1080"></canvas>
 
+    <!-- TV Platform Abstraction Layer (PAL) - Load BEFORE WASM -->
+    <script src="tv-pal.js"></script>
+
     <script src="mq_js_bundle.js"></script>
 
     <script>
@@ -175,38 +178,6 @@
             }
         };
 
-
-        // --- TV Platform Key Normalization ---
-        window.addEventListener("keydown", function (e) {
-            if (e.__is_normalized) return;
-            var key = e.keyCode || e.which;
-            var translatedKey = null;
-            var translatedCode = null;
-
-            // Normalized mappings based on .cursorrules/tv-platform-html5-keycodes.mdc
-            if (key === 10009 || key === 461) { // Tizen Back / webOS Back
-                translatedKey = "Backspace";
-                translatedCode = 8;
-            } else if (key === 23) { // FireTV Select / DPAD_CENTER
-                translatedKey = "Enter";
-                translatedCode = 13;
-            }
-
-            if (translatedKey) {
-                console.log("TV Bridge: Normalizing key " + key + " -> " + translatedKey);
-                var normalizedEvent = new KeyboardEvent("keydown", {
-                    key: translatedKey,
-                    keyCode: translatedCode,
-                    which: translatedCode,
-                    bubbles: true,
-                    cancelable: true
-                });
-                normalizedEvent.__is_normalized = true;
-                e.target.dispatchEvent(normalizedEvent);
-                e.preventDefault();
-            }
-        }, true);
-
         // --- Audio Visibility Handler (FireTV Home Button Fix) ---
         var audioContexts = [];
         (function () {
@@ -234,11 +205,135 @@
         // Note: The function MUST be named 'register_plugin'
         var ToonDashPlugin = {
             register_plugin: function (importObject) {
+                // Register existing functions
                 importObject.env.mq_save_highscore = window.mq_save_highscore;
                 importObject.env.mq_load_highscore = window.mq_load_highscore;
                 importObject.env.mq_set_progress = window.mq_set_progress;
                 importObject.env.mq_hide_splash = window.mq_hide_splash;
+
+                // TV input handlers - these will be connected to Rust functions
+                // We create wrapper functions that will be attached after WASM loads
+                window.mq_handle_up = function(pressed) {
+                    console.log("[ToonDash] mq_handle_up called (WASM may not be ready)");
+                };
+                window.mq_handle_down = function(pressed) {
+                    console.log("[ToonDash] mq_handle_down called (WASM may not be ready)");
+                };
+                window.mq_handle_left = function(pressed) {
+                    console.log("[ToonDash] mq_handle_left called (WASM may not be ready)");
+                };
+                window.mq_handle_right = function(pressed) {
+                    console.log("[ToonDash] mq_handle_right called (WASM may not be ready)");
+                };
+                window.mq_handle_action = function(pressed) {
+                    console.log("[ToonDash] mq_handle_action called (WASM may not be ready)");
+                };
+                window.mq_handle_back = function(pressed) {
+                    console.log("[ToonDash] mq_handle_back called (WASM may not be ready)");
+                };
+
+                // Store the actual Rust function references (will be updated after load)
+                window.__tvRustFunctions = {};
+
+                // Register TV input handler functions with Macroquad
+                importObject.env.mq_handle_up = function(pressed) {
+                    if (window.__tvRustFunctions.up) {
+                        window.__tvRustFunctions.up(pressed);
+                    }
+                };
+                importObject.env.mq_handle_down = function(pressed) {
+                    if (window.__tvRustFunctions.down) {
+                        window.__tvRustFunctions.down(pressed);
+                    }
+                };
+                importObject.env.mq_handle_left = function(pressed) {
+                    if (window.__tvRustFunctions.left) {
+                        window.__tvRustFunctions.left(pressed);
+                    }
+                };
+                importObject.env.mq_handle_right = function(pressed) {
+                    if (window.__tvRustFunctions.right) {
+                        window.__tvRustFunctions.right(pressed);
+                    }
+                };
+                importObject.env.mq_handle_action = function(pressed) {
+                    if (window.__tvRustFunctions.action) {
+                        window.__tvRustFunctions.action(pressed);
+                    }
+                };
+                importObject.env.mq_handle_back = function(pressed) {
+                    if (window.__tvRustFunctions.back) {
+                        window.__tvRustFunctions.back(pressed);
+                    }
+                };
+
+                console.log("[ToonDash] TV input handlers registered");
             }
+        };
+
+        // Hook into the load process to attach Rust functions after WASM loads
+        var originalLoad = window.load;
+        window.load = function(wasmFile) {
+            console.log("[ToonDash] Loading WASM with TV input hook...");
+
+            var result = originalLoad.call(this, wasmFile);
+
+            // The load function returns a promise - attach our handlers after it resolves
+            if (result && typeof result.then === 'function') {
+                result.then(function() {
+                    console.log("[ToonDash] WASM loaded, attaching TV input functions...");
+
+                    // Update the window functions to call the actual Rust functions
+                    window.mq_handle_up = function(pressed) {
+                        if (window.__tvRustFunctions.up) {
+                            window.__tvRustFunctions.up(pressed);
+                        } else {
+                            console.warn("[ToonDash] Rust function not ready: up");
+                        }
+                    };
+                    window.mq_handle_down = function(pressed) {
+                        if (window.__tvRustFunctions.down) {
+                            window.__tvRustFunctions.down(pressed);
+                        } else {
+                            console.warn("[ToonDash] Rust function not ready: down");
+                        }
+                    };
+                    window.mq_handle_left = function(pressed) {
+                        if (window.__tvRustFunctions.left) {
+                            window.__tvRustFunctions.left(pressed);
+                        } else {
+                            console.warn("[ToonDash] Rust function not ready: left");
+                        }
+                    };
+                    window.mq_handle_right = function(pressed) {
+                        if (window.__tvRustFunctions.right) {
+                            window.__tvRustFunctions.right(pressed);
+                        } else {
+                            console.warn("[ToonDash] Rust function not ready: right");
+                        }
+                    };
+                    window.mq_handle_action = function(pressed) {
+                        if (window.__tvRustFunctions.action) {
+                            window.__tvRustFunctions.action(pressed);
+                        } else {
+                            console.warn("[ToonDash] Rust function not ready: action");
+                        }
+                    };
+                    window.mq_handle_back = function(pressed) {
+                        if (window.__tvRustFunctions.back) {
+                            window.__tvRustFunctions.back(pressed);
+                        } else {
+                            console.warn("[ToonDash] Rust function not ready: back");
+                        }
+                    };
+
+                    console.log("[ToonDash] TV input functions ready!");
+                }).catch(function(err) {
+                    console.error("[ToonDash] Failed to load WASM:", err);
+                });
+            }
+
+            return result;
         };
 
         // Wait for the entire page (and mq_js_bundle.js) to be fully loaded and parsed
