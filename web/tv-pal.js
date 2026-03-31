@@ -68,7 +68,7 @@ const TV_PAL = (function() {
             left: [21],
             right: [22],
             action: [23, 66],     // DPAD_CENTER, ENTER
-            back: [4, 8],         // Back button (API 19+), Backspace
+            back: [4, 27, 8, 11],         // Back button (API 19+), Backspace
         },
         [Platform.ANDROID_TV]: {
             // Generic Android TV keycodes
@@ -77,7 +77,7 @@ const TV_PAL = (function() {
             left: [21],
             right: [22],
             action: [23, 66],
-            back: [4],
+            back: [4, 27, 8, 111],  // Standard back (4), Escape (27), Backspace (8), some devices use 111
         },
         [Platform.BROWSER]: {
             // Browser/desktop keycodes (for testing)
@@ -86,14 +86,14 @@ const TV_PAL = (function() {
             left: [37, 65],       // ArrowLeft, A
             right: [39, 68],      // ArrowRight, D
             action: [13, 32],     // Enter, Space
-            back: [27],           // Escape
+            back: [4, 27, 8, 11],        // Escape, Backspace
         }
     };
 
     let currentPlatform = null;
     let keyMapping = null;
     let isInitialized = false;
-    let debugMode = false;
+    let debugMode = true;  // Enable debug mode to capture Chromecast back keycode
 
     /**
      * Detect the current TV platform
@@ -190,6 +190,13 @@ const TV_PAL = (function() {
      */
     function handleKeyDown(e) {
         const keyCode = e.keyCode || e.which;
+
+        // Log ALL key events in debug mode, even unmapped ones
+        if (debugMode) {
+            const action = mapKeycodeToAction(keyCode);
+            console.log(`[TV-PAL] Keydown: keyCode=${keyCode}, code="${e.code}", key="${e.key}", action=${action || 'UNMAPPED'}`);
+        }
+
         const action = mapKeycodeToAction(keyCode);
 
         if (action) {
@@ -212,6 +219,10 @@ const TV_PAL = (function() {
     function handleKeyUp(e) {
         const keyCode = e.keyCode || e.which;
         const action = mapKeycodeToAction(keyCode);
+
+        if (debugMode) {
+            console.log(`[TV-PAL] Keyup: keyCode=${keyCode}, code="${e.code}", key="${e.key}", action=${action || 'UNMAPPED'}`);
+        }
 
         if (action) {
             forwardToRust(action, false);
@@ -271,6 +282,25 @@ const TV_PAL = (function() {
         window.addEventListener('keydown', handleKeyDown, true);
         window.addEventListener('keyup', handleKeyUp, true);
 
+        // Also add a backup listener to catch events that might be consumed by other handlers
+        // This helps debug TV-specific key events
+        if (debugMode) {
+            window.addEventListener('keydown', function(e) {
+                const keyCode = e.keyCode || e.which;
+                console.log(`[TV-PAL DEBUG] Raw keydown: keyCode=${keyCode}, code="${e.code}", key="${e.key}", defaultPrevented=${e.defaultPrevented}`);
+            }, true);
+
+            // Listen for popstate (back button navigation)
+            window.addEventListener('popstate', function(e) {
+                console.log('[TV-PAL DEBUG] popstate event detected (back button pressed as navigation)');
+            });
+
+            // Try to catch gamepad events (some remotes register as gamepads)
+            window.addEventListener('gamepadconnected', function(e) {
+                console.log('[TV-PAL DEBUG] Gamepad connected:', e.gamepad);
+            });
+        }
+
         // Prevent context menu on long press (common on TV remotes)
         window.addEventListener('contextmenu', function(e) {
             e.preventDefault();
@@ -309,12 +339,57 @@ const TV_PAL = (function() {
         debugMode = enabled;
     }
 
+    /**
+     * Handle key events from Android wrapper
+     * Called by AndroidJsInterface.onKeyEvent() when keys are pressed in the Android app
+     *
+     * @param {number} keyCode - The Android keycode (Android keycode constants)
+     * @param {string} state - Either "down" or "up"
+     */
+    function _handleAndroidKeyEvent(keyCode, state) {
+        if (debugMode) {
+            console.log(`[TV-PAL] Android key event: keyCode=${keyCode}, state=${state}`);
+        }
+
+        // Map Android keycodes to web keycodes
+        const androidToWebMap = {
+            4: 4,     // KEYCODE_BACK → web back
+            19: 19,   // KEYCODE_DPAD_UP
+            20: 20,   // KEYCODE_DPAD_DOWN
+            21: 21,   // KEYCODE_DPAD_LEFT
+            22: 22,   // KEYCODE_DPAD_RIGHT
+            23: 23,   // KEYCODE_DPAD_CENTER
+            66: 13,   // KEYCODE_ENTER → Enter (13)
+            27: 27,   // KEYCODE_MEDIA_PLAY_PAUSE (use actual value)
+        };
+
+        // For Android keycodes, we need to handle them directly
+        // Most D-pad keys already match web keycodes
+        let webKeyCode = keyCode;
+
+        // Special mapping for certain keys
+        if (keyCode === 66) webKeyCode = 13;  // Enter
+
+        const action = mapKeycodeToAction(webKeyCode);
+        if (action) {
+            const pressed = state === 'down';
+            forwardToRust(action, pressed);
+
+            if (debugMode) {
+                console.log(`[TV-PAL] Android key forwarded: ${action} = ${pressed}`);
+            }
+        } else if (debugMode) {
+            console.log(`[TV-PAL] Android key not mapped: keyCode=${keyCode} (webKeyCode=${webKeyCode})`);
+        }
+    }
+
     // Public API
     return {
         init,
         shutdown,
         getPlatform,
         setDebug,
+        _handleAndroidKeyEvent,  // Called by Android wrapper
 
         // Expose for testing/debugging
         _detectPlatform: detectPlatform,

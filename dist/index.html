@@ -271,69 +271,216 @@
             }
         };
 
-        // Hook into the load process to attach Rust functions after WASM loads
-        var originalLoad = window.load;
-        window.load = function(wasmFile) {
-            console.log("[ToonDash] Loading WASM with TV input hook...");
+        // Intercept WebAssembly.instantiateStreaming to capture the exports
+        var originalInstantiateStreaming = WebAssembly.instantiateStreaming;
+        WebAssembly.instantiateStreaming = function(response, imports) {
+            console.log("[ToonDash] Intercepting WebAssembly.instantiateStreaming...");
+            var promise = originalInstantiateStreaming.call(this, response, imports);
+            return promise.then(function(result) {
+                console.log("[ToonDash] WASM instantiateStreaming completed");
 
-            var result = originalLoad.call(this, wasmFile);
+                // Handle different result structures
+                var instance = null;
+                if (result && result.instance) {
+                    instance = result.instance;
+                } else if (result && result.module && result.module.exports) {
+                    // Some APIs return module with exports directly
+                    instance = result.module;
+                } else if (result && result.exports) {
+                    // Direct instance
+                    instance = result;
+                }
 
-            // The load function returns a promise - attach our handlers after it resolves
-            if (result && typeof result.then === 'function') {
-                result.then(function() {
-                    console.log("[ToonDash] WASM loaded, attaching TV input functions...");
+                if (!instance || !instance.exports) {
+                    console.warn("[ToonDash] Could not extract exports from instantiateStreaming result:", result);
+                    return result;
+                }
+
+                var exports = instance.exports;
+                console.log("[ToonDash] Extracting TV input functions from exports...");
+                var exportNames = Object.keys(exports);
+                console.log("[ToonDash] WASM exports available: " + JSON.stringify(exportNames));
+
+                // Extract TV input functions from exports
+                window.__tvRustFunctions = {
+                    up: exports.mq_handle_up || null,
+                    down: exports.mq_handle_down || null,
+                    left: exports.mq_handle_left || null,
+                    right: exports.mq_handle_right || null,
+                    action: exports.mq_handle_action || null,
+                    back: exports.mq_handle_back || null
+                };
+
+                // Check which functions were found
+                var missing = [];
+                if (!window.__tvRustFunctions.up) missing.push('up');
+                if (!window.__tvRustFunctions.down) missing.push('down');
+                if (!window.__tvRustFunctions.left) missing.push('left');
+                if (!window.__tvRustFunctions.right) missing.push('right');
+                if (!window.__tvRustFunctions.action) missing.push('action');
+                if (!window.__tvRustFunctions.back) missing.push('back');
+
+                if (missing.length > 0) {
+                    console.error("[ToonDash] Missing Rust functions: " + JSON.stringify(missing));
+                } else {
+                    console.log("[ToonDash] All TV input functions connected!");
 
                     // Update the window functions to call the actual Rust functions
+                    // These are called by tv-pal.js
                     window.mq_handle_up = function(pressed) {
                         if (window.__tvRustFunctions.up) {
                             window.__tvRustFunctions.up(pressed);
                         } else {
-                            console.warn("[ToonDash] Rust function not ready: up");
+                            console.warn("[ToonDash] mq_handle_up: Rust function not available");
                         }
                     };
                     window.mq_handle_down = function(pressed) {
                         if (window.__tvRustFunctions.down) {
                             window.__tvRustFunctions.down(pressed);
                         } else {
-                            console.warn("[ToonDash] Rust function not ready: down");
+                            console.warn("[ToonDash] mq_handle_down: Rust function not available");
                         }
                     };
                     window.mq_handle_left = function(pressed) {
                         if (window.__tvRustFunctions.left) {
                             window.__tvRustFunctions.left(pressed);
                         } else {
-                            console.warn("[ToonDash] Rust function not ready: left");
+                            console.warn("[ToonDash] mq_handle_left: Rust function not available");
                         }
                     };
                     window.mq_handle_right = function(pressed) {
                         if (window.__tvRustFunctions.right) {
                             window.__tvRustFunctions.right(pressed);
                         } else {
-                            console.warn("[ToonDash] Rust function not ready: right");
+                            console.warn("[ToonDash] mq_handle_right: Rust function not available");
                         }
                     };
                     window.mq_handle_action = function(pressed) {
                         if (window.__tvRustFunctions.action) {
                             window.__tvRustFunctions.action(pressed);
                         } else {
-                            console.warn("[ToonDash] Rust function not ready: action");
+                            console.warn("[ToonDash] mq_handle_action: Rust function not available");
                         }
                     };
                     window.mq_handle_back = function(pressed) {
                         if (window.__tvRustFunctions.back) {
                             window.__tvRustFunctions.back(pressed);
                         } else {
-                            console.warn("[ToonDash] Rust function not ready: back");
+                            console.warn("[ToonDash] mq_handle_back: Rust function not available");
                         }
                     };
 
-                    console.log("[ToonDash] TV input functions ready!");
-                }).catch(function(err) {
-                    console.error("[ToonDash] Failed to load WASM:", err);
-                });
-            }
+                    console.log("[ToonDash] Window functions updated to use Rust implementations!");
+                }
 
-            return result;
+                return result;
+            });
+        };
+
+        // Also intercept WebAssembly.instantiate for fallback
+        var originalInstantiate = WebAssembly.instantiate;
+        WebAssembly.instantiate = function(module, imports) {
+            console.log("[ToonDash] Intercepting WebAssembly.instantiate...");
+            var promise = originalInstantiate.call(this, module, imports);
+            return promise.then(function(result) {
+                console.log("[ToonDash] WASM instantiate completed");
+
+                // Handle different result structures
+                var instance = null;
+                if (result && result.instance) {
+                    instance = result.instance;
+                } else if (result && result.module && result.module.exports) {
+                    // Some APIs return module with exports directly
+                    instance = result.module;
+                } else if (result && result.exports) {
+                    // Direct instance
+                    instance = result;
+                }
+
+                if (!instance || !instance.exports) {
+                    console.warn("[ToonDash] Could not extract exports from instantiate result:", result);
+                    return result;
+                }
+
+                var exports = instance.exports;
+                console.log("[ToonDash] Extracting TV input functions from exports...");
+                var exportNames = Object.keys(exports);
+                console.log("[ToonDash] WASM exports available: " + JSON.stringify(exportNames));
+
+                // Extract TV input functions from exports
+                window.__tvRustFunctions = {
+                    up: exports.mq_handle_up || null,
+                    down: exports.mq_handle_down || null,
+                    left: exports.mq_handle_left || null,
+                    right: exports.mq_handle_right || null,
+                    action: exports.mq_handle_action || null,
+                    back: exports.mq_handle_back || null
+                };
+
+                // Check which functions were found
+                var missing = [];
+                if (!window.__tvRustFunctions.up) missing.push('up');
+                if (!window.__tvRustFunctions.down) missing.push('down');
+                if (!window.__tvRustFunctions.left) missing.push('left');
+                if (!window.__tvRustFunctions.right) missing.push('right');
+                if (!window.__tvRustFunctions.action) missing.push('action');
+                if (!window.__tvRustFunctions.back) missing.push('back');
+
+                if (missing.length > 0) {
+                    console.error("[ToonDash] Missing Rust functions: " + JSON.stringify(missing));
+                } else {
+                    console.log("[ToonDash] All TV input functions connected!");
+
+                    // Update the window functions to call the actual Rust functions
+                    // These are called by tv-pal.js
+                    window.mq_handle_up = function(pressed) {
+                        if (window.__tvRustFunctions.up) {
+                            window.__tvRustFunctions.up(pressed);
+                        } else {
+                            console.warn("[ToonDash] mq_handle_up: Rust function not available");
+                        }
+                    };
+                    window.mq_handle_down = function(pressed) {
+                        if (window.__tvRustFunctions.down) {
+                            window.__tvRustFunctions.down(pressed);
+                        } else {
+                            console.warn("[ToonDash] mq_handle_down: Rust function not available");
+                        }
+                    };
+                    window.mq_handle_left = function(pressed) {
+                        if (window.__tvRustFunctions.left) {
+                            window.__tvRustFunctions.left(pressed);
+                        } else {
+                            console.warn("[ToonDash] mq_handle_left: Rust function not available");
+                        }
+                    };
+                    window.mq_handle_right = function(pressed) {
+                        if (window.__tvRustFunctions.right) {
+                            window.__tvRustFunctions.right(pressed);
+                        } else {
+                            console.warn("[ToonDash] mq_handle_right: Rust function not available");
+                        }
+                    };
+                    window.mq_handle_action = function(pressed) {
+                        if (window.__tvRustFunctions.action) {
+                            window.__tvRustFunctions.action(pressed);
+                        } else {
+                            console.warn("[ToonDash] mq_handle_action: Rust function not available");
+                        }
+                    };
+                    window.mq_handle_back = function(pressed) {
+                        if (window.__tvRustFunctions.back) {
+                            window.__tvRustFunctions.back(pressed);
+                        } else {
+                            console.warn("[ToonDash] mq_handle_back: Rust function not available");
+                        }
+                    };
+
+                    console.log("[ToonDash] Window functions updated to use Rust implementations!");
+                }
+
+                return result;
+            });
         };
 
         // Wait for the entire page (and mq_js_bundle.js) to be fully loaded and parsed
