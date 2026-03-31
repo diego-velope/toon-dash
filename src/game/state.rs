@@ -39,7 +39,7 @@ impl Default for GameSettings {
             master_volume: 5, // user initially set default master to 50%
             music_volume: 10,
             effects_volume: 10,
-            game_speed: 10, // 10 = 1.0x (100%)
+            game_speed: 5,  // 5 / 5.0 = 1.0x (Baseline)
             focused_row: 0,
         }
     }
@@ -49,7 +49,7 @@ impl GameSettings {
     pub fn master_f32(&self) -> f32 { self.master_volume as f32 / 10.0 }
     pub fn music_f32(&self)  -> f32 { self.music_volume  as f32 / 10.0 }
     pub fn effects_f32(&self) -> f32 { self.effects_volume as f32 / 10.0 }
-    pub fn speed_f32(&self) -> f32 { self.game_speed as f32 / 10.0 }
+    pub fn speed_f32(&self) -> f32 { self.game_speed as f32 / 5.0 }
 }
 
 // ── Selectable characters ───────────────────────────────────────────────
