@@ -36,12 +36,21 @@ const TV_PAL = (function() {
     const keyMappings = {
         [Platform.TIZEN]: {
             // Samsung Tizen keycodes
+            // Navigation
             up: [38, 29460],      // ArrowUp, VK_UP
             down: [40, 29461],    // ArrowDown, VK_DOWN
             left: [37, 29462],    // ArrowLeft, VK_LEFT
             right: [39, 29463],   // ArrowRight, VK_RIGHT
             action: [13, 29443],  // Enter, VK_ENTER
-            back: [10009],        // VK_BACK
+
+            // Back button (multiple variants for different Tizen versions)
+            back: [10009, 4, 27], // VK_BACK (Tizen), Android back (4), Escape (27)
+
+            // Media keys (some Samsung remotes map media buttons to navigation)
+            // Note: 19 conflicts with Up on some models, so we check context
+            media_play_pause: [415, 19],  // MediaPlayPause button
+            media_fast_forward: [417],     // MediaFastForward button
+            media_rewind: [412],           // MediaRewind button
         },
         [Platform.WEBOS]: {
             // LG webOS keycodes
@@ -208,22 +217,25 @@ const TV_PAL = (function() {
     function handleKeyDown(e) {
         const keyCode = e.keyCode || e.which;
 
+        // Special handling for keycode 19 conflict on Samsung Tizen
+        // On some models, 19 = Up, on others 19 = MediaPlayPause
+        // We prioritize Up since navigation is more important for gameplay
+        let action = mapKeycodeToAction(keyCode);
+
         // Log ALL key events in debug mode, even unmapped ones
         if (debugMode) {
-            const action = mapKeycodeToAction(keyCode);
             console.log(`[TV-PAL] Keydown: keyCode=${keyCode}, code="${e.code}", key="${e.key}", action=${action || 'UNMAPPED'}`);
         }
 
-        const action = mapKeycodeToAction(keyCode);
-
         if (action) {
-            // Forward to Rust
+            // Forward to Rust IMMEDIATELY for maximum responsiveness
             forwardToRust(action, true);
 
-            // Prevent default behavior for TV-specific keys
-            // This prevents the browser from handling Back, etc.
+            // Prevent default behavior IMMEDIATELY
+            // This is critical for back button - must happen before any browser handling
             e.preventDefault();
             e.stopPropagation();
+            e.stopImmediatePropagation();
             return false;
         }
 
@@ -243,8 +255,11 @@ const TV_PAL = (function() {
 
         if (action) {
             forwardToRust(action, false);
+
+            // Prevent default behavior for consistency
             e.preventDefault();
             e.stopPropagation();
+            e.stopImmediatePropagation();
             return false;
         }
 
@@ -253,10 +268,12 @@ const TV_PAL = (function() {
 
     /**
      * Register Tizen keys (Samsung-specific)
+     * Different Tizen versions may have different key codes
      */
     function registerTizenKeys() {
         if (currentPlatform === Platform.TIZEN && window.tizen && window.tizen.tvinputdevice) {
             try {
+                // Register media keys to ensure we receive them
                 window.tizen.tvinputdevice.registerKeyBatch([
                     'MediaPlayPause',
                     'MediaFastForward',
@@ -266,11 +283,23 @@ const TV_PAL = (function() {
                     'ColorF2Yellow',
                     'ColorF3Blue'
                 ]);
-                console.log('[TV-PAL] Tizen media keys registered');
+                console.log('[TV-PAL] Tizen media keys registered successfully');
             } catch (e) {
                 console.warn('[TV-PAL] Tizen key registration failed:', e);
             }
         }
+    }
+
+    /**
+     * Debug function to log all key events (helpful for identifying unknown keycodes)
+     */
+    function logAllKeyEvents(e) {
+        if (!debugMode) return;
+
+        const keyCode = e.keyCode || e.which;
+        const action = mapKeycodeToAction(keyCode);
+
+        console.log(`[TV-PAL KEY] keyCode=${keyCode}, code="${e.code}", key="${e.key}", type="${e.type}", action=${action || 'UNMAPPED'}`);
     }
 
     /**
@@ -298,6 +327,31 @@ const TV_PAL = (function() {
         // Use capture phase to intercept keys before the browser handles them
         window.addEventListener('keydown', handleKeyDown, true);
         window.addEventListener('keyup', handleKeyUp, true);
+
+        // Special handling for back button to ensure maximum responsiveness
+        // Listen on multiple phases to catch events that might be consumed
+        window.addEventListener('keydown', function(e) {
+            const keyCode = e.keyCode || e.which;
+            // Check if this is a back button keycode (Tizen: 10009, Android: 4, Escape: 27)
+            if (keyCode === 10009 || keyCode === 4 || keyCode === 27) {
+                if (debugMode) {
+                    console.log(`[TV-PAL BACK] Caught back button: keyCode=${keyCode}`);
+                }
+                // Immediately prevent default and forward to Rust
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                forwardToRust('back', true);
+                return false;
+            }
+        }, true);  // Use capture phase with highest priority
+
+        // Also add backup listeners for debugging (catches events even if consumed by others)
+        if (debugMode) {
+            window.addEventListener('keydown', logAllKeyEvents, true);
+            window.addEventListener('keyup', logAllKeyEvents, true);
+            console.log('[TV-PAL] Debug mode enabled - all key events will be logged');
+        }
 
         // Also add a backup listener to catch events that might be consumed by other handlers
         // This helps debug TV-specific key events
