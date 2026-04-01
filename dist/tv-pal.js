@@ -343,24 +343,41 @@ const TV_PAL = (function() {
      * Handle key events from Android wrapper
      * Called by AndroidJsInterface.onKeyEvent() when keys are pressed in the Android app
      *
-     * @param {number} keyCode - The Android keycode (already mapped to web keycode)
+     * @param {number} keyCode - The Android keycode (Android keycode constants)
      * @param {string} state - Either "down" or "up"
      */
     function _handleAndroidKeyEvent(keyCode, state) {
-        if (debugMode) {
-            console.log(`[TV-PAL] Android key event: keyCode=${keyCode}, state=${state}`);
-        }
+        console.log(`[TV-PAL] _handleAndroidKeyEvent CALLED: keyCode=${keyCode}, state=${state}`);
 
-        const action = mapKeycodeToAction(keyCode);
+        // Map Android keycodes to web keycodes
+        const androidToWebMap = {
+            4: 4,     // KEYCODE_BACK → web back
+            19: 19,   // KEYCODE_DPAD_UP
+            20: 20,   // KEYCODE_DPAD_DOWN
+            21: 21,   // KEYCODE_DPAD_LEFT
+            22: 22,   // KEYCODE_DPAD_RIGHT
+            23: 23,   // KEYCODE_DPAD_CENTER
+            66: 13,   // KEYCODE_ENTER → Enter (13)
+            82: 999,  // KEYCODE_MENU (Fire TV menu button)
+            27: 27,   // KEYCODE_MEDIA_PLAY_PAUSE (use actual value)
+        };
+
+        // For Android keycodes, we need to handle them directly
+        // Most D-pad keys already match web keycodes
+        let webKeyCode = keyCode;
+
+        // Special mapping for certain keys
+        if (keyCode === 66) webKeyCode = 13;  // Enter
+        if (keyCode === 82) webKeyCode = 999;  // Menu button - ignore or handle specially
+
+        const action = mapKeycodeToAction(webKeyCode);
         if (action) {
             const pressed = state === 'down';
             forwardToRust(action, pressed);
 
-            if (debugMode) {
-                console.log(`[TV-PAL] Android key forwarded: ${action} = ${pressed}`);
-            }
-        } else if (debugMode) {
-            console.log(`[TV-PAL] Android key not mapped: keyCode=${keyCode}`);
+            console.log(`[TV-PAL] Android key forwarded: ${action} = ${pressed}`);
+        } else {
+            console.log(`[TV-PAL] Android key not mapped: keyCode=${keyCode} (webKeyCode=${webKeyCode})`);
         }
     }
 
@@ -377,6 +394,18 @@ const TV_PAL = (function() {
         _mapKeycodeToAction: mapKeycodeToAction,
     };
 })();
+
+// Also expose a global function for Android to call directly (more reliable)
+window._handleAndroidKeyEvent = function(keyCode, state) {
+    console.log('[TV-PAL GLOBAL] window._handleAndroidKeyEvent called with:', keyCode, state);
+    if (TV_PAL && TV_PAL._handleAndroidKeyEvent) {
+        TV_PAL._handleAndroidKeyEvent(keyCode, state);
+    } else {
+        console.error('[TV-PAL] TV_PAL not initialized when Android called _handleAndroidKeyEvent');
+    }
+};
+
+console.log('[TV-PAL] Global functions registered. window._handleAndroidKeyEvent =', typeof window._handleAndroidKeyEvent);
 
 // Auto-initialize on DOMContentLoaded
 if (document.readyState === 'loading') {
