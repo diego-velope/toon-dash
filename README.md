@@ -1,5 +1,7 @@
 # Toon Dash
 
+![Toon Dash](/assets/images/toon_dash_background.png)
+
 **Toon Dash** is a fast-paced, 3D endless runner game inspired by Tomb Runner. Built entirely in Rust using the lightweight [Macroquad](https://macroquad.rs/) engine!
 
 ## What is this game about?
@@ -10,6 +12,8 @@ It features:
 - **Multiple Characters:** 5 distinct characters to choose from (Oodi, Ooli, Oozi, Oopi, Oobi) from the Kenney Platformer Kit.
 - **Custom UI:** Built entirely from scratch, rendering beautiful 2D overlays on top of 3D viewports.
 - **Cross-Platform:** Native support for both Desktop and WebAssembly (WASM).
+
+![Gameplay](/assets/images/gameplay.png)
 
 ## 🎮 How to Play
 Navigate the menus using the **Arrow Keys** (D-Pad) and press **ENTER** to select.
@@ -82,3 +86,9 @@ cargo install basic-http-server
 basic-http-server dist/
 ```
 Then simply open your browser and navigate to the provided local address (usually `http://127.0.0.1:4000`) to play Toon Dash completely in the browser!
+
+## Documentation
+
+- `TV_DEVELOPMENT_GUIDE.md` - consolidated TV build/runtime guidance (Chromium 80+ target)
+- `TV_INPUT_GUIDE.md` - TV input architecture and integration contract
+- `TV_TESTING_GUIDE.md` - unified TV testing checklist and pass criteria
