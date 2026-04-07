@@ -121,6 +121,25 @@
             height: 1080px;
             z-index: 1;
         }
+
+        #fps-overlay {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            z-index: 1200;
+            display: none;
+            min-width: 220px;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(0, 0, 0, 0.75);
+            color: #eaffea;
+            font-family: Arial, sans-serif;
+            font-size: 20px;
+            line-height: 1.4;
+            white-space: pre-line;
+            pointer-events: none;
+        }
     </style>
 </head>
 
@@ -136,6 +155,7 @@
     </div>
 
     <canvas id="glcanvas" tabindex="1" width="1920" height="1080"></canvas>
+    <div id="fps-overlay" aria-hidden="true"></div>
 
     <!-- TV Platform Abstraction Layer (PAL) - Load BEFORE WASM -->
     <script src="tv-pal.js?v=1"></script>
@@ -150,6 +170,55 @@
             var score = localStorage.getItem('toon_dash_high_score');
             return score ? parseInt(score) : 0;
         };
+
+        var FPS_TARGET = 30;
+        var fpsQueryEnabled = new URLSearchParams(window.location.search).get('fps') === 'true';
+        var fpsOverlayElement = null;
+        var fpsLastTimestamp = 0;
+        var fpsFrameCount = 0;
+        var fpsRunningTotal = 0;
+        var fpsLastOverlayRefresh = 0;
+
+        function refreshFpsOverlay(currentFps, avgFps) {
+            if (!fpsOverlayElement) return;
+            fpsOverlayElement.textContent =
+                "FPS\n" +
+                "Target: " + FPS_TARGET + "\n" +
+                "Current: " + currentFps.toFixed(1) + "\n" +
+                "Average: " + avgFps.toFixed(1);
+        }
+
+        function tickFpsOverlay(timestampMs) {
+            if (!fpsQueryEnabled) return;
+
+            if (fpsLastTimestamp > 0) {
+                var frameDtMs = timestampMs - fpsLastTimestamp;
+                if (frameDtMs > 0) {
+                    var currentFps = 1000 / frameDtMs;
+                    fpsFrameCount += 1;
+                    fpsRunningTotal += currentFps;
+                    var avgFps = fpsRunningTotal / fpsFrameCount;
+
+                    if (timestampMs - fpsLastOverlayRefresh >= 250) {
+                        refreshFpsOverlay(currentFps, avgFps);
+                        fpsLastOverlayRefresh = timestampMs;
+                    }
+                }
+            }
+
+            fpsLastTimestamp = timestampMs;
+            requestAnimationFrame(tickFpsOverlay);
+        }
+
+        function initFpsOverlay() {
+            if (!fpsQueryEnabled) return;
+            fpsOverlayElement = document.getElementById("fps-overlay");
+            if (!fpsOverlayElement) return;
+
+            fpsOverlayElement.style.display = "block";
+            refreshFpsOverlay(0, 0);
+            requestAnimationFrame(tickFpsOverlay);
+        }
 
         window.mq_set_progress = function (percent) {
             var fill = document.getElementById("loading-fill");
@@ -495,6 +564,8 @@
                 if (status) status.textContent = "Error: Engine script failed.";
                 return;
             }
+
+            initFpsOverlay();
 
             // Register plugin and load WASM
             miniquad_add_plugin(ToonDashPlugin);

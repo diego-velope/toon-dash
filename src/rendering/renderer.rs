@@ -936,7 +936,7 @@ impl GameRenderer {
         self.render_character_preview(
             choice,
             box_x,
-            box_y + 120.0,
+            box_y + 200.0,
             box_w,
             char_preview_h,
             0.5,
@@ -947,7 +947,7 @@ impl GameRenderer {
         self.draw_font_text_centered(
             choice.display_name(),
             sw / 2.0,
-            box_y + 120.0 + char_preview_h + 60.0,
+            box_y + box_h - 160.0,
             55,
             WHITE,
         );
