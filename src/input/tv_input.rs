@@ -51,14 +51,18 @@ impl TvInput {
             // On WASM, prefer the TV input manager (via JavaScript PAL)
             if let Some(tv_manager) = crate::tv_input_manager::get_tv_input_manager() {
                 use crate::tv_input_manager::TvAction;
-                self.up = tv_manager.is_action_pressed(TvAction::Up);
-                self.down = tv_manager.is_action_pressed(TvAction::Down);
-                self.left = tv_manager.is_action_pressed(TvAction::Left);
-                self.right = tv_manager.is_action_pressed(TvAction::Right);
-                self.action = tv_manager.is_action_pressed(TvAction::Action);
-                self.back = tv_manager.is_action_pressed(TvAction::Back);
+                // Use was_action_pressed (latch) instead of is_action_pressed
+                // (instantaneous). The latch remains true for the whole frame even
+                // when the key was pressed AND released before this read — which
+                // happens routinely on Samsung 2025 / Tizen 8.0 back button taps.
+                self.up = tv_manager.was_action_pressed(TvAction::Up);
+                self.down = tv_manager.was_action_pressed(TvAction::Down);
+                self.left = tv_manager.was_action_pressed(TvAction::Left);
+                self.right = tv_manager.was_action_pressed(TvAction::Right);
+                self.action = tv_manager.was_action_pressed(TvAction::Action);
+                self.back = tv_manager.was_action_pressed(TvAction::Back);
 
-                // Update the TV manager for next frame
+                // Update the TV manager for next frame (clears the latch)
                 crate::tv_input_manager::get_tv_input_manager_mut().unwrap().update();
             } else {
                 // Fallback to keyboard if TV manager not available

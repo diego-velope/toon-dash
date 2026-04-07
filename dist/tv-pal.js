@@ -212,6 +212,42 @@ const TV_PAL = (function() {
     }
 
     /**
+     * Check whether a raw keyCode maps to the back action on the active platform.
+     * Falls back to the common back keyCodes when the mapping is not yet loaded.
+     */
+    function isBackKeyCode(keyCode) {
+        const backCodes = (keyMapping && keyMapping.back) ? keyMapping.back : [10009, 4, 27];
+        return backCodes.includes(keyCode);
+    }
+
+    /**
+     * Single source of truth for all back-button event handling.
+     *
+     * Both the primary handleKeyDown/handleKeyUp listeners and the high-priority
+     * backup back listener call this helper so that:
+     *   - back key detection uses the same platform keyMapping in both places
+     *   - preventDefault / propagation stops are identical in both places
+     *   - the Rust forwardToRust call is made exactly once per event
+     *   - debug logging format is consistent
+     *
+     * Returns true if the event was consumed as a back event, false otherwise.
+     */
+    function handleBackEvent(e, pressed) {
+        const keyCode = e.keyCode || e.which;
+        if (!isBackKeyCode(keyCode)) return false;
+
+        if (debugMode) {
+            console.log(`[TV-PAL BACK] keyCode=${keyCode}, code="${e.code}", key="${e.key}", pressed=${pressed}`);
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        forwardToRust('back', pressed);
+        return true;
+    }
+
+    /**
      * Keydown event handler
      */
     function handleKeyDown(e) {
@@ -228,14 +264,18 @@ const TV_PAL = (function() {
         }
 
         if (action) {
-            // Forward to Rust IMMEDIATELY for maximum responsiveness
-            forwardToRust(action, true);
+            if (action === 'back') {
+                // Route back through the shared handler for consistent behavior
+                handleBackEvent(e, true);
+            } else {
+                // Forward to Rust IMMEDIATELY for maximum responsiveness
+                forwardToRust(action, true);
 
-            // Prevent default behavior IMMEDIATELY
-            // This is critical for back button - must happen before any browser handling
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
+                // Prevent default behavior IMMEDIATELY
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+            }
             return false;
         }
 
@@ -254,12 +294,17 @@ const TV_PAL = (function() {
         }
 
         if (action) {
-            forwardToRust(action, false);
+            if (action === 'back') {
+                // Route back through the shared handler for consistent behavior
+                handleBackEvent(e, false);
+            } else {
+                forwardToRust(action, false);
 
-            // Prevent default behavior for consistency
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
+                // Prevent default behavior for consistency
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+            }
             return false;
         }
 
@@ -328,23 +373,17 @@ const TV_PAL = (function() {
         window.addEventListener('keydown', handleKeyDown, true);
         window.addEventListener('keyup', handleKeyUp, true);
 
-        // Special handling for back button to ensure maximum responsiveness
-        // Listen on multiple phases to catch events that might be consumed
+        // High-priority backup back listener.
+        // Registered after handleKeyDown so it acts as a safety net: if the
+        // primary listener is somehow blocked by a rogue stopImmediatePropagation
+        // from another script, this still fires and forwards the event.
+        // Uses handleBackEvent (same helper as the primary listener) so behavior
+        // is always identical — no logic duplication, no drift risk.
         window.addEventListener('keydown', function(e) {
-            const keyCode = e.keyCode || e.which;
-            // Check if this is a back button keycode (Tizen: 10009, Android: 4, Escape: 27)
-            if (keyCode === 10009 || keyCode === 4 || keyCode === 27) {
-                if (debugMode) {
-                    console.log(`[TV-PAL BACK] Caught back button: keyCode=${keyCode}`);
-                }
-                // Immediately prevent default and forward to Rust
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                forwardToRust('back', true);
+            if (handleBackEvent(e, true)) {
                 return false;
             }
-        }, true);  // Use capture phase with highest priority
+        }, true);  // Capture phase — mirrors priority of the primary listener
 
         // Also add backup listeners for debugging (catches events even if consumed by others)
         if (debugMode) {
@@ -478,13 +517,17 @@ window._handleAndroidKeyEvent = function(keyCode, state) {
 
 console.log('[TV-PAL] Global functions registered. window._handleAndroidKeyEvent =', typeof window._handleAndroidKeyEvent);
 
+// Enable debug mode by adding ?debug to the URL (e.g. yourapp.com/?debug).
+// This lets you inspect keycodes on a real TV device without a code change.
+const _tvPalDebug = new URLSearchParams(window.location.search).has('debug');
+
 // Auto-initialize on DOMContentLoaded
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
-        TV_PAL.init({ debug: false });
+        TV_PAL.init({ debug: _tvPalDebug });
     });
 } else {
-    TV_PAL.init({ debug: false });
+    TV_PAL.init({ debug: _tvPalDebug });
 }
 
 // Export to global scope
