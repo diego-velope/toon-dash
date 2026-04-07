@@ -247,6 +247,25 @@
             }
         };
 
+        window.mq_shutdown_game = function () {
+            if (window.TV_PAL && typeof window.TV_PAL.shutdown === "function") {
+                window.TV_PAL.shutdown();
+            }
+            try {
+                if (window.tizen && tizen.application) {
+                    tizen.application.getCurrentApplication().exit();
+                    return;
+                }
+                if (window.webOS && typeof window.webOS.platformBack === "function") {
+                    window.webOS.platformBack();
+                    return;
+                }
+            } catch (error) {
+                console.error("[ToonDash] platform shutdown failed:", error);
+            }
+            window.close();
+        };
+
         // --- Audio Visibility Handler (FireTV Home Button Fix) ---
         var audioContexts = [];
         (function () {
@@ -279,6 +298,7 @@
                 importObject.env.mq_load_highscore = window.mq_load_highscore;
                 importObject.env.mq_set_progress = window.mq_set_progress;
                 importObject.env.mq_hide_splash = window.mq_hide_splash;
+                importObject.env.mq_shutdown_game = window.mq_shutdown_game;
 
                 // TV input handlers - these will be connected to Rust functions
                 // We create wrapper functions that will be attached after WASM loads

@@ -33,7 +33,20 @@ impl Default for GameCamera {
 }
 
 impl GameCamera {
+    pub const BASE_DISTANCE: f32 = 15.0;
+    pub const BASE_SMOOTHING: f32 = 0.12;
+    pub const BASE_LOOK_AHEAD: f32 = 25.0;
+
     pub fn new() -> Self { Self::default() }
+
+    pub fn set_dynamic_tuning(&mut self, total_speed: f32) {
+        let _ = total_speed;
+        // Keep framing stable so the character remains in the same screen-space
+        // position regardless of score/speed progression.
+        self.distance = Self::BASE_DISTANCE;
+        self.look_ahead = Self::BASE_LOOK_AHEAD;
+        self.smoothing = Self::BASE_SMOOTHING;
+    }
 
     pub fn snap(&mut self, player_x: f32, player_y: f32, player_z: f32) {
         self.position = Vec3::new(
@@ -61,6 +74,9 @@ impl GameCamera {
             player_z + self.look_ahead,
         );
 
+        // Keep Z locked to the runner to avoid forward creep at high speeds.
+        self.position.z = desired_pos.z;
+        self.target.z = desired_target.z;
         self.position = self.position.lerp(desired_pos, self.smoothing);
         self.target   = self.target.lerp(desired_target, self.smoothing);
     }

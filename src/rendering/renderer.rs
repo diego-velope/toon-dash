@@ -26,6 +26,68 @@ pub struct GameRenderer {
     menu_bg: Option<Texture2D>,
     game_bg: Option<Texture2D>,
     font: Option<Font>,
+    hud_cache: HudCache,
+}
+
+#[derive(Default)]
+struct HudCache {
+    last_score: u32,
+    last_coins: u32,
+    last_distance: i32,
+    last_combo: u32,
+    score_text: String,
+    coins_text: String,
+    distance_text: String,
+    combo_text: String,
+}
+
+impl HudCache {
+    fn new() -> Self {
+        Self {
+            last_score: u32::MAX,
+            last_coins: u32::MAX,
+            last_distance: i32::MIN,
+            last_combo: u32::MAX,
+            score_text: String::new(),
+            coins_text: String::new(),
+            distance_text: String::new(),
+            combo_text: String::new(),
+        }
+    }
+
+    fn update(&mut self, game_state: &GameState) {
+        let score = game_state.score.floor() as u32;
+        if score != self.last_score {
+            self.last_score = score;
+            self.score_text.clear();
+            self.score_text.push_str("Score: ");
+            self.score_text.push_str(&score.to_string());
+        }
+
+        if game_state.coins != self.last_coins {
+            self.last_coins = game_state.coins;
+            self.coins_text.clear();
+            self.coins_text.push_str("Coins: ");
+            self.coins_text.push_str(&game_state.coins.to_string());
+        }
+
+        let distance = game_state.distance as i32;
+        if distance != self.last_distance {
+            self.last_distance = distance;
+            self.distance_text.clear();
+            self.distance_text.push_str("Distance: ");
+            self.distance_text.push_str(&distance.to_string());
+            self.distance_text.push('m');
+        }
+
+        if game_state.combo != self.last_combo {
+            self.last_combo = game_state.combo;
+            self.combo_text.clear();
+            self.combo_text.push_str("Combo: ");
+            self.combo_text.push_str(&game_state.combo.to_string());
+            self.combo_text.push('x');
+        }
+    }
 }
 
 impl GameRenderer {
@@ -36,6 +98,7 @@ impl GameRenderer {
             menu_bg: None,
             game_bg: None,
             font: None,
+            hud_cache: HudCache::new(),
         }
     }
 
@@ -76,9 +139,13 @@ impl GameRenderer {
             .update(player.position.x, player.position.y, player.position.z, dt);
     }
 
+    pub fn set_speed_factor(&mut self, total_speed: f32) {
+        self.camera.set_dynamic_tuning(total_speed);
+    }
+
     // ── Main render dispatch ────────────────────────────────────────────
     pub fn render(
-        &self,
+        &mut self,
         game_state: &GameState,
         track: &Track,
         player: &Player,
@@ -91,6 +158,7 @@ impl GameRenderer {
         game_settings: &GameSettings,
         character_choice: &CharacterChoice,
         select_char_focused: bool,
+        quit_confirm_close_focused: bool,
     ) {
         // Clear screen
         clear_background(Color::from_rgba(60, 60, 60, 255));
@@ -116,6 +184,7 @@ impl GameRenderer {
                     game_settings,
                     character_choice,
                     select_char_focused,
+                    quit_confirm_close_focused,
                 );
             }
             GameScreen::Playing => {
@@ -156,7 +225,7 @@ impl GameRenderer {
 
     // ── Gameplay rendering ──────────────────────────────────────────────
     fn render_game(
-        &self,
+        &mut self,
         track: &Track,
         player: &Player,
         obstacle_manager: &ObstacleManager,
@@ -167,6 +236,7 @@ impl GameRenderer {
 
         let player_z = player.position.z;
         let view_dist = 120.0;
+        let frame_time = get_time() as f32;
 
         self.render_ground(player_z, view_dist);
         self.render_decorations(player_z, view_dist);
@@ -181,7 +251,7 @@ impl GameRenderer {
 
         for item in collectible_manager.get_visible(player_z, view_dist) {
             if !item.collected {
-                self.render_collectible(item);
+                self.render_collectible(item, frame_time);
             }
         }
 
@@ -423,19 +493,18 @@ impl GameRenderer {
         }
     }
 
-    fn render_collectible(&self, item: &Collectible) {
+    fn render_collectible(&self, item: &Collectible, frame_time: f32) {
         let pos = item.position.to_vec3();
         let (mesh_key, default_color) = match item.ctype {
             CollectibleType::Coin => ("coin", self.model_manager.get_color("coin")),
             CollectibleType::Jewel => ("jewel", Color::from_rgba(180, 50, 255, 255)), // Jewel color fallback
         };
 
-        let time = get_time() as f32;
-        let bob = (time * 3.0 + pos.z * 0.5).sin() * 0.15;
-        let pulse = 0.9 + (time * 4.0).sin() * 0.1;
+        let bob = (frame_time * 3.0 + pos.z * 0.5).sin() * 0.15;
+        let pulse = 0.9 + (frame_time * 4.0).sin() * 0.1;
 
         let item_pos = pos + vec3(0.0, ROAD_SURFACE_Y + 0.35 + bob, 0.0);
-        let spin = Quat::from_rotation_y(time * 3.0);
+        let spin = Quat::from_rotation_y(frame_time * 3.0);
 
         if let Some(mesh) = self.model_manager.mesh(mesh_key) {
             draw_mesh_at_rot(mesh, item_pos, 2.8 * pulse, spin);
@@ -462,26 +531,28 @@ impl GameRenderer {
         }
     }
 
-    fn render_hud(&self, game_state: &GameState) {
+    fn render_hud(&mut self, game_state: &GameState) {
+        self.hud_cache.update(game_state);
+
         // Larger HUD panel for 1080p TVs
         draw_rectangle(20.0, 20.0, 340.0, 160.0, Color::from_rgba(0, 0, 0, 150));
 
         self.draw_font_text(
-            &format!("Score: {}", game_state.score.floor() as u32),
+            &self.hud_cache.score_text,
             35.0,
             65.0,
             44,
             WHITE,
         );
         self.draw_font_text(
-            &format!("Coins: {}", game_state.coins),
+            &self.hud_cache.coins_text,
             35.0,
             110.0,
             38,
             Color::from_rgba(255, 200, 50, 255),
         );
         self.draw_font_text(
-            &format!("Distance: {}m", game_state.distance as i32),
+            &self.hud_cache.distance_text,
             35.0,
             150.0,
             32,
@@ -490,18 +561,24 @@ impl GameRenderer {
 
         // ── Combo Multiplier Label ──────────────────────────────────────
         let sw = screen_width();
-        let combo_text = format!("Combo: {}x", game_state.combo);
+        let sh = screen_height();
+        let combo_text = &self.hud_cache.combo_text;
 
-        // Much larger base size for TV visibility
+        // Smooth pulse: starts at base size, grows, then returns to base size.
+        // combo_anim_timer counts down from 0.8 to 0.0.
+        let anim_duration = 0.8_f32;
+        let anim_progress = (1.0 - (game_state.combo_anim_timer / anim_duration))
+            .clamp(0.0, 1.0);
+        let pulse = (anim_progress * std::f32::consts::PI).sin().max(0.0);
         let base_size: u16 = 65;
-        let pop_size: f32 = 45.0;
-        let font_size = base_size + (game_state.combo_anim_timer.max(0.0) * pop_size) as u16;
+        let pop_size: u16 = 35;
+        let font_size = base_size + (pulse * pop_size as f32) as u16;
 
-        // Horizontal center, top of screen
+        // Horizontal center, bottom of screen
         self.draw_font_text_centered(
-            &combo_text,
+            combo_text,
             sw / 2.0,
-            70.0,
+            sh - 36.0,
             font_size,
             if game_state.combo > 1 { YELLOW } else { WHITE },
         );
@@ -515,6 +592,7 @@ impl GameRenderer {
         game_settings: &GameSettings,
         character_choice: &CharacterChoice,
         select_char_focused: bool,
+        quit_confirm_close_focused: bool,
     ) {
         let sw = screen_width();
         let sh = screen_height();
@@ -619,7 +697,7 @@ impl GameRenderer {
         );
 
         // "SELECT CHARACTER" button (at bottom of panel)
-        let select_btn_w = 340.0;
+        let select_btn_w = (panel_w - 20.0).max(220.0);
         let select_btn_h = 75.0;
         let select_btn_x = panel_x + (panel_w - select_btn_w) / 2.0;
         let select_btn_y = panel_y + panel_h - select_btn_h - 25.0;
@@ -640,6 +718,9 @@ impl GameRenderer {
             MenuSubScreen::CharacterSelect => {
                 self.render_character_select_overlay(character_choice)
             }
+            MenuSubScreen::QuitConfirm => {
+                self.render_quit_confirm_overlay(quit_confirm_close_focused)
+            }
             MenuSubScreen::None => {}
         }
     }
@@ -657,10 +738,10 @@ impl GameRenderer {
     ) {
         let mesh_key = choice.mesh_key();
         if let Some(mesh) = self.model_manager.mesh(mesh_key) {
-            let vp_x = panel_x as i32;
-            let vp_y = (screen_height() - panel_y - panel_h) as i32;
-            let vp_w = panel_w as i32;
-            let vp_h = panel_h as i32;
+            let vp_x = panel_x.max(0.0) as i32;
+            let vp_y = (screen_height() - panel_y - panel_h).max(0.0) as i32;
+            let vp_w = panel_w.max(1.0) as i32;
+            let vp_h = panel_h.max(1.0) as i32;
 
             let aspect = panel_w / panel_h;
             set_camera(&Camera3D {
@@ -903,7 +984,7 @@ impl GameRenderer {
         draw_rectangle(0.0, 0.0, sw, sh, Color::from_rgba(0, 0, 0, 160));
 
         let box_w = sw * 0.65;
-        let box_h = sh * 0.80;
+        let box_h = sh * 0.70;
         let box_x = (sw - box_w) / 2.0;
         let box_y = (sh - box_h) / 2.0;
 
@@ -926,44 +1007,119 @@ impl GameRenderer {
         self.draw_font_text_centered(
             "CHOOSE CHARACTER",
             sw / 2.0,
-            box_y + 80.0,
+            box_y + box_h * 0.10,
             64,
             Color::from_rgba(255, 200, 50, 255),
         );
 
         // Preview area
-        let char_preview_h = box_h * 0.5;
+        let preview_top = box_y + box_h * 0.25;
+        let char_preview_h = box_h * 0.44;
         self.render_character_preview(
             choice,
             box_x,
-            box_y + 200.0,
+            preview_top,
             box_w,
             char_preview_h,
             0.5,
-            3.0,
+            2.5,
         );
 
         // Name and hints
+        let name_y = box_y + box_h * 0.78;
+        let nav_y = box_y + box_h * 0.87;
+        let hint_y = box_y + box_h * 0.94;
         self.draw_font_text_centered(
             choice.display_name(),
             sw / 2.0,
-            box_y + box_h - 160.0,
+            name_y,
             55,
             WHITE,
         );
         self.draw_font_text_centered(
             "< PREVIOUS     |     NEXT >",
             sw / 2.0,
-            box_y + box_h - 100.0,
+            nav_y,
             32,
             Color::from_rgba(180, 180, 200, 255),
         );
         self.draw_font_text_centered(
             "Press ENTER to Select",
             sw / 2.0,
-            box_y + box_h - 45.0,
+            hint_y,
             32,
             Color::from_rgba(255, 200, 50, 255),
+        );
+    }
+
+    fn render_quit_confirm_overlay(&self, close_focused: bool) {
+        let sw = screen_width();
+        let sh = screen_height();
+        draw_rectangle(0.0, 0.0, sw, sh, Color::from_rgba(0, 0, 0, 180));
+
+        let box_w = sw * 0.55;
+        let box_h = sh * 0.38;
+        let box_x = (sw - box_w) / 2.0;
+        let box_y = (sh - box_h) / 2.0;
+        draw_rectangle(
+            box_x,
+            box_y,
+            box_w,
+            box_h,
+            Color::from_rgba(30, 30, 50, 235),
+        );
+        draw_rectangle_lines(
+            box_x,
+            box_y,
+            box_w,
+            box_h,
+            4.0,
+            Color::from_rgba(255, 200, 50, 200),
+        );
+
+        self.draw_font_text_centered(
+            "ARE YOU SURE TO CLOSE THE GAME?",
+            sw / 2.0,
+            box_y + 85.0,
+            48,
+            WHITE,
+        );
+
+        let btn_w = box_w * 0.36;
+        let btn_h = 86.0;
+        let gap = box_w * 0.08;
+        let total_w = btn_w * 2.0 + gap;
+        let start_x = box_x + (box_w - total_w) / 2.0;
+        let btn_y = box_y + box_h - 135.0;
+
+        // Change this red to customize the "Close game" button color.
+        let close_color = Color::from_rgba(200, 40, 40, 255);
+        let close_highlight = Color::from_rgba(225, 70, 70, 255);
+        // Change this green to customize the "Continue playing" button color.
+        let continue_color = Color::from_rgba(40, 160, 40, 255);
+        let continue_highlight = Color::from_rgba(70, 190, 70, 255);
+
+        Self::draw_ui_button_with_colors(
+            start_x,
+            btn_y,
+            btn_w,
+            btn_h,
+            "CLOSE GAME",
+            close_focused,
+            self.font.as_ref(),
+            close_color,
+            close_highlight,
+        );
+        Self::draw_ui_button_with_colors(
+            start_x + btn_w + gap,
+            btn_y,
+            btn_w,
+            btn_h,
+            "CONTINUE PLAYING",
+            !close_focused,
+            self.font.as_ref(),
+            continue_color,
+            continue_highlight,
         );
     }
 
@@ -1129,25 +1285,46 @@ impl GameRenderer {
         is_focused: bool,
         font: Option<&Font>,
     ) {
-        let dark_gray = Color::from_rgba(51, 51, 51, 255);
-
+        let active_btn_color = Color::from_rgba(58, 227, 58, 255);
+        let active_highlight = Color::from_rgba(100, 240, 100, 255);
+        let idle_btn_color = Color::from_rgba(70, 130, 180, 255);
+        let idle_highlight = Color::from_rgba(100, 160, 210, 255);
         let (btn_color, highlight) = if is_focused {
-            (
-                Color::from_rgba(58, 227, 58, 255),
-                Color::from_rgba(100, 240, 100, 255),
-            )
+            (active_btn_color, active_highlight)
         } else {
-            (
-                Color::from_rgba(70, 130, 180, 255),
-                Color::from_rgba(100, 160, 210, 255),
-            )
+            (idle_btn_color, idle_highlight)
         };
+        Self::draw_ui_button_with_colors(x, y, w, h, text, is_focused, font, btn_color, highlight);
+    }
+
+    fn draw_ui_button_with_colors(
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        text: &str,
+        is_focused: bool,
+        font: Option<&Font>,
+        btn_color: Color,
+        highlight: Color,
+    ) {
+        let dark_gray = Color::from_rgba(51, 51, 51, 255);
 
         // Shadow + border + face + highlight
         draw_rectangle(x + 6.0, y + 6.0, w, h, dark_gray);
         draw_rectangle(x - 4.0, y - 4.0, w + 8.0, h + 8.0, dark_gray);
         draw_rectangle(x, y, w, h, btn_color);
         draw_rectangle(x, y, w, h * 0.25, highlight);
+        if is_focused {
+            draw_rectangle_lines(
+                x - 6.0,
+                y - 6.0,
+                w + 12.0,
+                h + 12.0,
+                4.0,
+                Color::from_rgba(255, 255, 255, 230),
+            );
+        }
 
         // Text
         let font_size = h * 0.5;

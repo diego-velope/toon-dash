@@ -6,6 +6,7 @@ mod wasm {
     extern "C" {
         pub fn mq_set_progress(percent: f32);
         pub fn mq_hide_splash();
+        pub fn mq_shutdown_game();
     }
 }
 
@@ -26,5 +27,17 @@ pub fn hide_splash() {
     #[cfg(target_arch = "wasm32")]
     unsafe {
         wasm::mq_hide_splash();
+    }
+}
+
+pub fn shutdown_game() {
+    #[cfg(target_arch = "wasm32")]
+    unsafe {
+        wasm::mq_shutdown_game();
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        std::process::exit(0);
     }
 }

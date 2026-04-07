@@ -20,6 +20,7 @@ pub enum MenuSubScreen {
     HowToPlay,
     Options,
     CharacterSelect,
+    QuitConfirm,
 }
 
 // ── Game Settings (volume & speed controllers) ─────────────────────────

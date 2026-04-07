@@ -78,7 +78,10 @@ impl ObstacleManager {
         self.last_spawn_z = 30.0;
     }
 
-    pub fn spawn_from_segments(&mut self, segments: &[&TrackSegment], config: &GameConfig) {
+    pub fn spawn_from_segments<'a, I>(&mut self, segments: I, config: &GameConfig)
+    where
+        I: IntoIterator<Item = &'a TrackSegment>,
+    {
         for segment in segments {
             if segment.z_position > self.last_spawn_z + self.min_spacing {
                 if self.rng.gen::<f32>() < 0.5 {
@@ -159,9 +162,8 @@ impl ObstacleManager {
         None
     }
 
-    pub fn get_visible(&self, player_z: f32, view_dist: f32) -> Vec<&Obstacle> {
+    pub fn get_visible(&self, player_z: f32, view_dist: f32) -> impl Iterator<Item = &Obstacle> {
         self.obstacles.iter()
-            .filter(|o| o.position.z > player_z - 20.0 && o.position.z < player_z + view_dist)
-            .collect()
+            .filter(move |o| o.position.z > player_z - 20.0 && o.position.z < player_z + view_dist)
     }
 }

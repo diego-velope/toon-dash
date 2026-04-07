@@ -87,30 +87,27 @@ impl Track {
         });
     }
 
-    pub fn get_obstacle_zones(&self, player_z: f32, view_dist: f32) -> Vec<&TrackSegment> {
+    pub fn get_obstacle_zones(&self, player_z: f32, view_dist: f32) -> impl Iterator<Item = &TrackSegment> {
         self.segments.iter()
-            .filter(|s| {
+            .filter(move |s| {
                 s.segment_type == SegmentType::ObstacleZone
                     && s.z_position > player_z
                     && s.z_position < player_z + view_dist
             })
-            .collect()
     }
 
-    pub fn get_coin_zones(&self, player_z: f32, view_dist: f32) -> Vec<&TrackSegment> {
+    pub fn get_coin_zones(&self, player_z: f32, view_dist: f32) -> impl Iterator<Item = &TrackSegment> {
         self.segments.iter()
-            .filter(|s| {
+            .filter(move |s| {
                 s.segment_type == SegmentType::CoinZone
                     && s.z_position > player_z
                     && s.z_position < player_z + view_dist
             })
-            .collect()
     }
 
-    pub fn get_visible(&self, player_z: f32, view_dist: f32) -> Vec<&TrackSegment> {
+    pub fn get_visible(&self, player_z: f32, view_dist: f32) -> impl Iterator<Item = &TrackSegment> {
         self.segments.iter()
-            .filter(|s| s.z_position > player_z - 25.0 && s.z_position < player_z + view_dist)
-            .collect()
+            .filter(move |s| s.z_position > player_z - 25.0 && s.z_position < player_z + view_dist)
     }
 
     pub fn difficulty(&self) -> f32 { self.difficulty }

@@ -59,6 +59,8 @@ async fn main() {
     let mut game_settings = GameSettings::default();
     let mut character_choice = CharacterChoice::default();
     let mut select_char_focused = false;
+    let mut quit_confirm_close_focused = false;
+    let mut smoothed_speed_multiplier = 1.0_f32;
 
     // Load models and audio
     info!("Loading assets...");
@@ -95,10 +97,12 @@ async fn main() {
         // Process input
         input.update();
 
-        // Progressive game speed scaling: base speed + 1.0 per 5000 score
-        let speed_multiplier = 1.0 + (game_state.score / 5000.0);
-        let total_speed = game_settings.speed_f32() * speed_multiplier;
+        // Smooth progression avoids visible hitches when combo spikes score.
+        let target_speed_multiplier = 1.0 + (game_state.score / 5000.0);
+        smoothed_speed_multiplier += (target_speed_multiplier - smoothed_speed_multiplier) * 0.05;
+        let total_speed = game_settings.speed_f32() * smoothed_speed_multiplier;
         let scaled_dt = dt * total_speed;
+        renderer.set_speed_factor(total_speed);
 
         // Update audio volume dynamically based on logic: min(master, music)
         let effective_vol =
@@ -151,9 +155,14 @@ async fn main() {
                                         sub_screen = MenuSubScreen::Options;
                                     }
                                     MenuOption::Quit => {
-                                        std::process::exit(0);
+                                        quit_confirm_close_focused = false;
+                                        sub_screen = MenuSubScreen::QuitConfirm;
                                     }
                                 }
+                            }
+                            if input.is_back_just_pressed() {
+                                quit_confirm_close_focused = false;
+                                sub_screen = MenuSubScreen::QuitConfirm;
                             }
                             // Right arrow focuses SELECT CHARACTER button
                             if input.is_right_just_pressed() {
@@ -248,6 +257,25 @@ async fn main() {
                             character_choice = character_choice.next();
                         }
                     }
+                    MenuSubScreen::QuitConfirm => {
+                        if input.is_back_just_pressed() {
+                            sub_screen = MenuSubScreen::None;
+                        }
+                        if input.is_left_just_pressed()
+                            || input.is_right_just_pressed()
+                            || input.is_up_just_pressed()
+                            || input.is_down_just_pressed()
+                        {
+                            quit_confirm_close_focused = !quit_confirm_close_focused;
+                        }
+                        if input.is_action_just_pressed() {
+                            if quit_confirm_close_focused {
+                                toon_dash::game::loading::shutdown_game();
+                            } else {
+                                sub_screen = MenuSubScreen::None;
+                            }
+                        }
+                    }
                 }
             }
             GameScreen::Playing => {
@@ -274,14 +302,16 @@ async fn main() {
                 track.update(player.distance_traveled, &config);
 
                 // Spawn obstacles and coins
-                let obstacle_zones =
-                    track.get_obstacle_zones(player.distance_traveled, config.spawn_distance);
-                obstacle_manager.spawn_from_segments(&obstacle_zones, &config);
+                obstacle_manager.spawn_from_segments(
+                    track.get_obstacle_zones(player.distance_traveled, config.spawn_distance),
+                    &config,
+                );
                 obstacle_manager.update(player.distance_traveled, &config);
 
-                let coin_zones =
-                    track.get_coin_zones(player.distance_traveled, config.spawn_distance);
-                collectible_manager.spawn_from_segments(&coin_zones, &config);
+                collectible_manager.spawn_from_segments(
+                    track.get_coin_zones(player.distance_traveled, config.spawn_distance),
+                    &config,
+                );
                 collectible_manager.update(player.distance_traveled, &config);
 
                 // Check collisions
@@ -326,7 +356,7 @@ async fn main() {
                 }
 
                 game_state.update_score(
-                    scaled_dt,
+                    dt,
                     player.distance_traveled,
                     game_state.coins + coins,
                 );
@@ -474,6 +504,7 @@ async fn main() {
             &game_settings,
             &character_choice,
             select_char_focused,
+            quit_confirm_close_focused,
         );
 
         next_frame().await;

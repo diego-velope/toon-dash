@@ -50,7 +50,10 @@ impl CollectibleManager {
         self.last_spawn_z = 20.0;
     }
 
-    pub fn spawn_from_segments(&mut self, segments: &[&TrackSegment], config: &GameConfig) {
+    pub fn spawn_from_segments<'a, I>(&mut self, segments: I, config: &GameConfig)
+    where
+        I: IntoIterator<Item = &'a TrackSegment>,
+    {
         for segment in segments {
             if segment.z_position > self.last_spawn_z + self.min_spacing {
                 // Spawn collectible line
@@ -119,9 +122,8 @@ impl CollectibleManager {
         (coins_collected, jewels_collected)
     }
 
-    pub fn get_visible(&self, player_z: f32, view_dist: f32) -> Vec<&Collectible> {
+    pub fn get_visible(&self, player_z: f32, view_dist: f32) -> impl Iterator<Item = &Collectible> {
         self.items.iter()
-            .filter(|c| c.position.z > player_z - 20.0 && c.position.z < player_z + view_dist)
-            .collect()
+            .filter(move |c| c.position.z > player_z - 20.0 && c.position.z < player_z + view_dist)
     }
 }
