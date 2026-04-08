@@ -19,6 +19,12 @@
     var isInitialized = false;
     var debugMode = true;
 
+    function debugLog() {
+        if (debugMode) {
+            console.log.apply(console, arguments);
+        }
+    }
+
     function detectPlatform() {
         return TDP.detectPlatform();
     }
@@ -36,9 +42,7 @@
     }
 
     function forwardToRust(action, pressed) {
-        if (debugMode) {
-            console.log('[TV-PAL] Key: ' + action + ' = ' + pressed);
-        }
+        debugLog('[TV-PAL] Key: ' + action + ' = ' + pressed);
 
         var functionMap = {
             up: 'mq_handle_up',
@@ -75,18 +79,16 @@
         var keyCode = e.keyCode || e.which;
         if (!isBackKeyCode(keyCode)) return false;
 
-        if (debugMode) {
-            console.log(
-                '[TV-PAL BACK] keyCode=' +
-                    keyCode +
-                    ', code="' +
-                    e.code +
-                    '", key="' +
-                    e.key +
-                    '", pressed=' +
-                    pressed
-            );
-        }
+        debugLog(
+            '[TV-PAL BACK] keyCode=' +
+                keyCode +
+                ', code="' +
+                e.code +
+                '", key="' +
+                e.key +
+                '", pressed=' +
+                pressed
+        );
 
         e.preventDefault();
         e.stopPropagation();
@@ -99,18 +101,16 @@
         var keyCode = e.keyCode || e.which;
         var action = mapKeycodeToAction(keyCode);
 
-        if (debugMode) {
-            console.log(
-                '[TV-PAL] Keydown: keyCode=' +
-                    keyCode +
-                    ', code="' +
-                    e.code +
-                    '", key="' +
-                    e.key +
-                    '", action=' +
-                    (action || 'UNMAPPED')
-            );
-        }
+        debugLog(
+            '[TV-PAL] Keydown: keyCode=' +
+                keyCode +
+                ', code="' +
+                e.code +
+                '", key="' +
+                e.key +
+                '", action=' +
+                (action || 'UNMAPPED')
+        );
 
         if (action) {
             if (action === 'back') {
@@ -131,18 +131,16 @@
         var keyCode = e.keyCode || e.which;
         var action = mapKeycodeToAction(keyCode);
 
-        if (debugMode) {
-            console.log(
-                '[TV-PAL] Keyup: keyCode=' +
-                    keyCode +
-                    ', code="' +
-                    e.code +
-                    '", key="' +
-                    e.key +
-                    '", action=' +
-                    (action || 'UNMAPPED')
-            );
-        }
+        debugLog(
+            '[TV-PAL] Keyup: keyCode=' +
+                keyCode +
+                ', code="' +
+                e.code +
+                '", key="' +
+                e.key +
+                '", action=' +
+                (action || 'UNMAPPED')
+        );
 
         if (action) {
             if (action === 'back') {
@@ -165,7 +163,7 @@
         var keyCode = e.keyCode || e.which;
         var action = mapKeycodeToAction(keyCode);
 
-        console.log(
+        debugLog(
             '[TV-PAL KEY] keyCode=' +
                 keyCode +
                 ', code="' +
@@ -199,8 +197,8 @@
 
         keyMapping = impl.keyMapping;
 
-        console.log('[TV-PAL] Initializing for platform:', currentPlatform);
-        console.log('[TV-PAL] Key mappings:', keyMapping);
+        debugLog('[TV-PAL] Initializing for platform:', currentPlatform);
+        debugLog('[TV-PAL] Key mappings:', keyMapping);
 
         if (typeof impl.registerKeys === 'function') {
             impl.registerKeys({ currentPlatform: currentPlatform });
@@ -222,7 +220,7 @@
         if (debugMode) {
             window.addEventListener('keydown', logAllKeyEvents, true);
             window.addEventListener('keyup', logAllKeyEvents, true);
-            console.log('[TV-PAL] Debug mode enabled - all key events will be logged');
+            debugLog('[TV-PAL] Debug mode enabled - all key events will be logged');
         }
 
         if (debugMode) {
@@ -262,7 +260,7 @@
         });
 
         isInitialized = true;
-        console.log('[TV-PAL] Initialization complete');
+        debugLog('[TV-PAL] Initialization complete');
     }
 
     /**
@@ -284,17 +282,17 @@
             try {
                 var hostHandledExit = impl.shutdownHost() === true;
                 if (hostHandledExit) {
-                    console.log('[TV-PAL] Shutdown complete (host handled app exit)');
+                    debugLog('[TV-PAL] Shutdown complete (host handled app exit)');
                     return false;
                 }
             } catch (e) {
                 console.warn('[TV-PAL] shutdownHost failed:', e);
-                console.log('[TV-PAL] Shutdown complete (host hook failed, fallback may run)');
+                debugLog('[TV-PAL] Shutdown complete (host hook failed, fallback may run)');
                 return true;
             }
         }
 
-        console.log('[TV-PAL] Shutdown complete');
+        debugLog('[TV-PAL] Shutdown complete');
         return true;
     }
 
@@ -307,7 +305,7 @@
     }
 
     function _handleAndroidKeyEvent(keyCode, state) {
-        console.log(
+        debugLog(
             '[TV-PAL] _handleAndroidKeyEvent CALLED: keyCode=' + keyCode + ', state=' + state
         );
 
@@ -319,9 +317,9 @@
         if (action) {
             var pressed = state === 'down';
             forwardToRust(action, pressed);
-            console.log('[TV-PAL] Android key forwarded: ' + action + ' = ' + pressed);
+            debugLog('[TV-PAL] Android key forwarded: ' + action + ' = ' + pressed);
         } else {
-            console.log(
+            debugLog(
                 '[TV-PAL] Android key not mapped: keyCode=' +
                     keyCode +
                     ' (webKeyCode=' +
@@ -344,7 +342,7 @@
     };
 
     window._handleAndroidKeyEvent = function (keyCode, state) {
-        console.log(
+        debugLog(
             '[TV-PAL GLOBAL] window._handleAndroidKeyEvent called with:',
             keyCode,
             state
@@ -358,7 +356,7 @@
         }
     };
 
-    console.log(
+    debugLog(
         '[TV-PAL] Global functions registered. window._handleAndroidKeyEvent =',
         typeof window._handleAndroidKeyEvent
     );
