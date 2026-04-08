@@ -1,5 +1,7 @@
 //! Game State Management for Toon Dash
 
+use crate::input::TvInput;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GameScreen {
     MainMenu,
@@ -82,6 +84,84 @@ impl GameSettings {
     pub fn music_f32(&self)  -> f32 { self.music_volume  as f32 / 10.0 }
     pub fn effects_f32(&self) -> f32 { self.effects_volume as f32 / 10.0 }
     pub fn speed_f32(&self) -> f32 { self.game_speed as f32 / 5.0 }
+
+    /// Handles d-pad input for the options overlay (main menu or pause).
+    /// Returns `true` when the overlay should close (back / pause-menu confirm).
+    pub fn handle_options_input(&mut self, input: &TvInput, from_pause_menu: bool) -> bool {
+        if from_pause_menu {
+            if input.is_back_just_pressed()
+                || (input.is_action_just_pressed() && self.focused_row == 4)
+            {
+                return true;
+            }
+        } else {
+            if input.is_back_just_pressed() {
+                return true;
+            }
+        }
+
+        if input.is_up_just_pressed() {
+            if self.focused_row > 0 {
+                self.focused_row -= 1;
+            }
+        }
+        if input.is_down_just_pressed() {
+            if self.focused_row < 3 {
+                self.focused_row += 1;
+            }
+        }
+        if input.is_left_just_pressed() {
+            match self.focused_row {
+                0 => {
+                    if self.master_volume > 0 {
+                        self.master_volume -= 1;
+                    }
+                }
+                1 => {
+                    if self.music_volume > 0 {
+                        self.music_volume -= 1;
+                    }
+                }
+                2 => {
+                    if self.effects_volume > 0 {
+                        self.effects_volume -= 1;
+                    }
+                }
+                3 => {
+                    if self.game_speed > 1 {
+                        self.game_speed -= 1;
+                    }
+                }
+                _ => {}
+            }
+        }
+        if input.is_right_just_pressed() {
+            match self.focused_row {
+                0 => {
+                    if self.master_volume < 10 {
+                        self.master_volume += 1;
+                    }
+                }
+                1 => {
+                    if self.music_volume < 10 {
+                        self.music_volume += 1;
+                    }
+                }
+                2 => {
+                    if self.effects_volume < 10 {
+                        self.effects_volume += 1;
+                    }
+                }
+                3 => {
+                    if self.game_speed < 10 {
+                        self.game_speed += 1;
+                    }
+                }
+                _ => {}
+            }
+        }
+        false
+    }
 }
 
 // ── Selectable characters ───────────────────────────────────────────────
