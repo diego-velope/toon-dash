@@ -16,7 +16,7 @@ pub use obstacles::{Obstacle, ObstacleManager, ObstacleType};
 pub use player::{Player, PlayerState};
 pub use state::{
     CharacterChoice, GameOverOption, GameScreen, GameSettings, GameState, MenuNavigator,
-    MenuOption, MenuSubScreen, PauseOption,
+    MenuOption, MenuSubScreen, PauseOption, ShutdownFlow, ShutdownStage,
 };
 pub use track::{SegmentType, Track, TrackSegment};
 pub use types::{BoundingBox, GameConfig, Lane, Position3D};

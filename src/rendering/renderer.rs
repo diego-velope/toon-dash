@@ -159,6 +159,7 @@ impl GameRenderer {
         character_choice: &CharacterChoice,
         select_char_focused: bool,
         quit_confirm_close_focused: bool,
+        allow_menu_preview_render: bool,
     ) {
         // Clear screen
         clear_background(Color::from_rgba(60, 60, 60, 255));
@@ -185,6 +186,7 @@ impl GameRenderer {
                     character_choice,
                     select_char_focused,
                     quit_confirm_close_focused,
+                    allow_menu_preview_render,
                 );
             }
             GameScreen::Playing => {
@@ -593,6 +595,7 @@ impl GameRenderer {
         character_choice: &CharacterChoice,
         select_char_focused: bool,
         quit_confirm_close_focused: bool,
+        allow_menu_preview_render: bool,
     ) {
         let sw = screen_width();
         let sh = screen_height();
@@ -676,25 +679,29 @@ impl GameRenderer {
         let char_preview_h = panel_h - select_btn_h_val - name_area_h - bottom_padding - 10.0;
 
         // 3D character rotating (centered in upper area)
-        self.render_character_preview(
-            character_choice,
-            panel_x,
-            panel_y,
-            panel_w,
-            char_preview_h,
-            0.6, // model_y
-            2.0, // model_scale
-        );
+        if allow_menu_preview_render {
+            self.render_character_preview(
+                character_choice,
+                panel_x,
+                panel_y,
+                panel_w,
+                char_preview_h,
+                0.6, // model_y
+                2.0, // model_scale
+            );
+        }
 
         // Character name (below the 3D model)
         let name = character_choice.display_name();
-        self.draw_font_text_centered(
-            name,
-            panel_x + panel_w / 2.0,
-            panel_y + char_preview_h + 35.0,
-            44,
-            WHITE,
-        );
+        if allow_menu_preview_render {
+            self.draw_font_text_centered(
+                name,
+                panel_x + panel_w / 2.0,
+                panel_y + char_preview_h + 35.0,
+                44,
+                WHITE,
+            );
+        }
 
         // "SELECT CHARACTER" button (at bottom of panel)
         let select_btn_w = (panel_w - 20.0).max(220.0);
@@ -815,7 +822,7 @@ impl GameRenderer {
             "UP  -  Jump (dodge low barriers)",
             "DOWN  -  Slide (dodge high barriers)",
             "ENTER  -  Select / Confirm",
-            "ESC  -  Pause",
+            "BACK  -  Pause",
             "",
             "Collect coins for extra score!",
             "Full barriers must be dodged",
@@ -827,7 +834,7 @@ impl GameRenderer {
 
         let start_y = box_y + 160.0;
         for (i, line) in lines.iter().enumerate() {
-            self.draw_font_text_centered(line, sw / 2.0, start_y + i as f32 * 50.0, 32, WHITE);
+            self.draw_font_text_centered(line, sw / 2.0, start_y + i as f32 * 45.0, 32, WHITE);
         }
 
         // Close hint
@@ -895,7 +902,7 @@ impl GameRenderer {
         let row_y_start = box_y + 160.0;
 
         for (i, (label, val)) in row_labels.iter().zip(row_values.iter()).enumerate() {
-            let y = row_y_start + i as f32 * 190.0 + 20.0;
+            let y = row_y_start + i as f32 * 180.0 + 20.0;
             let is_focused = game_settings.focused_row == i;
             let label_color = if is_focused {
                 Color::from_rgba(58, 227, 58, 255)

@@ -23,6 +23,37 @@ pub enum MenuSubScreen {
     QuitConfirm,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ShutdownStage {
+    #[default]
+    None,
+    Requested,
+    Finalizing,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ShutdownFlow {
+    pub stage: ShutdownStage,
+}
+
+impl ShutdownFlow {
+    pub fn request_close(&mut self) {
+        if self.stage == ShutdownStage::None {
+            self.stage = ShutdownStage::Requested;
+        }
+    }
+
+    pub fn mark_finalizing(&mut self) {
+        if self.stage == ShutdownStage::Requested {
+            self.stage = ShutdownStage::Finalizing;
+        }
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.stage != ShutdownStage::None
+    }
+}
+
 // ── Game Settings (volume & speed controllers) ─────────────────────────
 #[derive(Debug, Clone)]
 pub struct GameSettings {
@@ -284,5 +315,30 @@ impl MenuNavigator<PauseOption> {
 impl MenuNavigator<GameOverOption> {
     pub fn game_over_menu() -> Self {
         Self::new(vec![GameOverOption::Restart, GameOverOption::Quit])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn shutdown_flow_transitions_in_order() {
+        let mut flow = ShutdownFlow::default();
+        assert_eq!(flow.stage, ShutdownStage::None);
+
+        flow.request_close();
+        assert_eq!(flow.stage, ShutdownStage::Requested);
+
+        flow.mark_finalizing();
+        assert_eq!(flow.stage, ShutdownStage::Finalizing);
+    }
+
+    #[test]
+    fn request_close_is_idempotent() {
+        let mut flow = ShutdownFlow::default();
+        flow.request_close();
+        flow.request_close();
+        assert_eq!(flow.stage, ShutdownStage::Requested);
     }
 }

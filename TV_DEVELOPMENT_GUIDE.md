@@ -46,6 +46,16 @@ High-level flow:
 - Ensure `web/index.html` loads `web/pal/*.js` (namespace → detect → platforms → `pal-core.js`) before the WASM bundle.
 - Keep `mq_js_bundle.js` and `toon-dash.wasm` in sync after each build.
 
+## Close / Shutdown Contract
+
+- Rust requests close through `mq_shutdown_game` after local teardown (stop looping music, stop non-essential render work).
+- `web/index.html` delegates shutdown to `window.TV_PAL.shutdown()` first.
+- PAL platform adapters perform host-specific close when available:
+  - Tizen: `tizen.application.getCurrentApplication().exit()`
+  - FireTV / Android wrapper: `AndroidJsInterface.shutdown()`
+  - webOS: `webOS.platformBack()`
+- If no platform host close handler is available, fallback is `window.close()`.
+
 ## Troubleshooting
 
 If input is not working:
