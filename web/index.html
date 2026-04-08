@@ -1,597 +1,691 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=1920, height=1080, initial-scale=1.0">
-    <meta name="tv-navigation" content="true">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=1920, height=1080, initial-scale=1.0"
+    />
+    <meta name="tv-navigation" content="true" />
     <title>Toon Dash</title>
 
     <style>
-        @font-face {
-            font-family: 'Luckiest Guy';
-            src: url('assets/fonts/LuckiestGuy-Regular.ttf') format('truetype');
-        }
+      @font-face {
+        font-family: "Luckiest Guy";
+        src: url("assets/fonts/LuckiestGuy-Regular.ttf") format("truetype");
+      }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-        html,
-        body {
-            width: 1920px;
-            height: 1080px;
-            overflow: hidden;
-            background: #1a1a2e;
-            font-family: 'Luckiest Guy', cursive;
-        }
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #1a1a2e;
+        font-family: "Luckiest Guy", cursive;
+      }
 
-        #splash {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 1920px;
-            height: 1080px;
-            background: url('assets/images/toon_dash_background.png') no-repeat center;
-            background-size: cover;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            transition: opacity 0.5s ease-out;
-        }
+      #splash {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1920px;
+        height: 1080px;
+        background: url("assets/images/toon_dash_background.png") no-repeat
+          center;
+        background-size: cover;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        transition: opacity 0.5s ease-out;
+      }
 
-        #splash.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
+      #splash.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
 
+      #loading-container {
+        position: absolute;
+        top: 55%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 830px;
+        height: 100px;
+        background: url("assets/images/loading_bar.png") no-repeat center;
+        background-size: contain;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
 
-        #loading-container {
-            position: absolute;
-            top: 55%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 830px;
-            height: 100px;
-            background: url('assets/images/loading_bar.png') no-repeat center;
-            background-size: contain;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+      #loading-fill {
+        position: absolute;
+        left: 25px;
+        height: 50px;
+        width: 0%;
+        background: linear-gradient(180deg, #ff9d00 0%, #ff6b00 100%);
+        border-radius: 13px;
+        box-shadow:
+          inset 0 2px 5px rgba(255, 255, 255, 0.4),
+          0 0 15px rgba(255, 107, 0, 0.6);
+        transition: width 0.2s ease-out;
+        overflow: hidden;
+      }
 
-        #loading-fill {
-            position: absolute;
-            left: 25px;
-            height: 50px;
-            width: 0%;
-            background: linear-gradient(180deg, #ff9d00 0%, #ff6b00 100%);
-            border-radius: 13px;
-            box-shadow: inset 0 2px 5px rgba(255, 255, 255, 0.4),
-                0 0 15px rgba(255, 107, 0, 0.6);
-            transition: width 0.2s ease-out;
-            overflow: hidden;
-        }
+      #loading-fill::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.3),
+          transparent
+        );
+        animation: shimmer 2s infinite;
+      }
 
-        #loading-fill::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-            animation: shimmer 2s infinite;
+      @keyframes shimmer {
+        100% {
+          left: 100%;
         }
+      }
 
-        @keyframes shimmer {
-            100% {
-                left: 100%;
-            }
-        }
+      #loading-label {
+        position: relative;
+        z-index: 1001;
+        font-size: 32px;
+        color: white;
+        text-shadow:
+          2px 2px 0px #000,
+          -1px -1px 0px #000,
+          1px -1px 0px #000,
+          -1px 1px 0px #000;
+        letter-spacing: 2px;
+      }
 
-        #loading-label {
-            position: relative;
-            z-index: 1001;
-            font-size: 32px;
-            color: white;
-            text-shadow: 2px 2px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000;
-            letter-spacing: 2px;
-        }
+      #splash-status {
+        position: absolute;
+        top: calc(55% + 70px);
+        font-size: 64px;
+        color: #e4c900;
+        text-transform: uppercase;
+        text-shadow:
+          4px 4px 0px #000,
+          -2px -2px 0px #000,
+          2px -2px 0px #000,
+          -2px 2px 0px #000,
+          4px 0px 0px #000,
+          -4px 0px 0px #000,
+          0px 4px 0px #000,
+          0px -4px 0px #000;
+        letter-spacing: 6px;
+      }
 
-        #splash-status {
-            position: absolute;
-            top: calc(55% + 70px);
-            font-size: 64px;
-            color: #e4c900;
-            text-transform: uppercase;
-            text-shadow: 4px 4px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000, 4px 0px 0px #000, -4px 0px 0px #000, 0px 4px 0px #000, 0px -4px 0px #000;
-            letter-spacing: 6px;
-        }
+      #glcanvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1920px;
+        height: 1080px;
+        z-index: 1;
+      }
 
-        #glcanvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 1920px;
-            height: 1080px;
-            z-index: 1;
-        }
-
-        #fps-overlay {
-            position: absolute;
-            top: 24px;
-            right: 24px;
-            z-index: 1200;
-            display: none;
-            min-width: 220px;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            background: rgba(0, 0, 0, 0.75);
-            color: #eaffea;
-            font-family: Arial, sans-serif;
-            font-size: 20px;
-            line-height: 1.4;
-            white-space: pre-line;
-            pointer-events: none;
-        }
+      #fps-overlay {
+        position: absolute;
+        top: 24px;
+        right: 24px;
+        z-index: 1200;
+        display: none;
+        min-width: 220px;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        background: rgba(0, 0, 0, 0.75);
+        color: #eaffea;
+        font-family: Arial, sans-serif;
+        font-size: 20px;
+        line-height: 1.4;
+        white-space: pre-line;
+        pointer-events: none;
+      }
     </style>
-</head>
+  </head>
 
-<body>
+  <body>
     <div id="splash">
+      <div id="loading-container">
+        <div id="loading-fill"></div>
+        <div id="loading-label">0%</div>
+      </div>
 
-        <div id="loading-container">
-            <div id="loading-fill"></div>
-            <div id="loading-label">0%</div>
-        </div>
-
-        <div id="splash-status">Initializing...</div>
+      <div id="splash-status">Initializing...</div>
     </div>
 
     <canvas id="glcanvas" tabindex="1" width="1920" height="1080"></canvas>
     <div id="fps-overlay" aria-hidden="true"></div>
 
-    <!-- TV Platform Abstraction Layer (PAL) - Load BEFORE WASM -->
-    <script src="tv-pal.js?v=1"></script>
+    <!-- TV Platform Abstraction Layer (PAL) - Load BEFORE WASM; order matters -->
+    <script src="pal/namespace.js?v=2"></script>
+    <script src="pal/detect-platform.js?v=2"></script>
+    <script src="pal/platforms/tizen.js?v=2"></script>
+    <script src="pal/platforms/webos.js?v=2"></script>
+    <script src="pal/platforms/vizio.js?v=2"></script>
+    <script src="pal/platforms/firetv.js?v=2"></script>
+    <script src="pal/platforms/android-tv.js?v=2"></script>
+    <script src="pal/platforms/browser.js?v=2"></script>
+    <script src="pal/pal-core.js?v=2"></script>
 
     <script src="mq_js_bundle.js?v=1"></script>
 
     <script>
-        window.mq_save_highscore = function (score) {
-            localStorage.setItem('toon_dash_high_score', score);
-        };
-        window.mq_load_highscore = function () {
-            var score = localStorage.getItem('toon_dash_high_score');
-            return score ? parseInt(score) : 0;
-        };
+      window.mq_save_highscore = function (score) {
+        localStorage.setItem("toon_dash_high_score", score);
+      };
+      window.mq_load_highscore = function () {
+        var score = localStorage.getItem("toon_dash_high_score");
+        return score ? parseInt(score) : 0;
+      };
 
-        var FPS_TARGET = 30;
-        var fpsQueryEnabled = new URLSearchParams(window.location.search).get('fps') === 'true';
-        var fpsOverlayElement = null;
-        var fpsLastTimestamp = 0;
-        var fpsFrameCount = 0;
-        var fpsRunningTotal = 0;
-        var fpsLastOverlayRefresh = 0;
+      var FPS_TARGET = 30;
+      var fpsQueryEnabled =
+        new URLSearchParams(window.location.search).get("fps") === "true";
+      var fpsOverlayElement = null;
+      var fpsLastTimestamp = 0;
+      var fpsFrameCount = 0;
+      var fpsRunningTotal = 0;
+      var fpsLastOverlayRefresh = 0;
 
-        function refreshFpsOverlay(currentFps, avgFps) {
-            if (!fpsOverlayElement) return;
-            fpsOverlayElement.textContent =
-                "FPS\n" +
-                "Target: " + FPS_TARGET + "\n" +
-                "Current: " + currentFps.toFixed(1) + "\n" +
-                "Average: " + avgFps.toFixed(1);
+      function refreshFpsOverlay(currentFps, avgFps) {
+        if (!fpsOverlayElement) return;
+        fpsOverlayElement.textContent =
+          "FPS\n" +
+          "Target: " +
+          FPS_TARGET +
+          "\n" +
+          "Current: " +
+          currentFps.toFixed(1) +
+          "\n" +
+          "Average: " +
+          avgFps.toFixed(1);
+      }
+
+      function tickFpsOverlay(timestampMs) {
+        if (!fpsQueryEnabled) return;
+
+        if (fpsLastTimestamp > 0) {
+          var frameDtMs = timestampMs - fpsLastTimestamp;
+          if (frameDtMs > 0) {
+            var currentFps = 1000 / frameDtMs;
+            fpsFrameCount += 1;
+            fpsRunningTotal += currentFps;
+            var avgFps = fpsRunningTotal / fpsFrameCount;
+
+            if (timestampMs - fpsLastOverlayRefresh >= 250) {
+              refreshFpsOverlay(currentFps, avgFps);
+              fpsLastOverlayRefresh = timestampMs;
+            }
+          }
         }
 
-        function tickFpsOverlay(timestampMs) {
-            if (!fpsQueryEnabled) return;
+        fpsLastTimestamp = timestampMs;
+        requestAnimationFrame(tickFpsOverlay);
+      }
 
-            if (fpsLastTimestamp > 0) {
-                var frameDtMs = timestampMs - fpsLastTimestamp;
-                if (frameDtMs > 0) {
-                    var currentFps = 1000 / frameDtMs;
-                    fpsFrameCount += 1;
-                    fpsRunningTotal += currentFps;
-                    var avgFps = fpsRunningTotal / fpsFrameCount;
+      function initFpsOverlay() {
+        if (!fpsQueryEnabled) return;
+        fpsOverlayElement = document.getElementById("fps-overlay");
+        if (!fpsOverlayElement) return;
 
-                    if (timestampMs - fpsLastOverlayRefresh >= 250) {
-                        refreshFpsOverlay(currentFps, avgFps);
-                        fpsLastOverlayRefresh = timestampMs;
-                    }
-                }
-            }
+        fpsOverlayElement.style.display = "block";
+        refreshFpsOverlay(0, 0);
+        requestAnimationFrame(tickFpsOverlay);
+      }
 
-            fpsLastTimestamp = timestampMs;
-            requestAnimationFrame(tickFpsOverlay);
+      window.mq_set_progress = function (percent) {
+        var fill = document.getElementById("loading-fill");
+        var label = document.getElementById("loading-label");
+        var status = document.getElementById("splash-status");
+
+        if (fill) fill.style.width = percent * 0.94 + "%";
+        if (label) label.textContent = Math.round(percent) + "%";
+
+        if (status) {
+          if (percent >= 100) status.textContent = "READY!";
+          else if (percent > 90) status.textContent = "Preparing character...";
+          else if (percent > 40) status.textContent = "Loading models...";
+          else if (percent > 10) status.textContent = "Connecting to engine...";
         }
+      };
 
-        function initFpsOverlay() {
-            if (!fpsQueryEnabled) return;
-            fpsOverlayElement = document.getElementById("fps-overlay");
-            if (!fpsOverlayElement) return;
-
-            fpsOverlayElement.style.display = "block";
-            refreshFpsOverlay(0, 0);
-            requestAnimationFrame(tickFpsOverlay);
+      window.mq_hide_splash = function () {
+        var splash = document.getElementById("splash");
+        if (splash) {
+          splash.classList.add("hidden");
         }
+        var canvas = document.getElementById("glcanvas");
+        if (canvas) {
+          canvas.focus();
+        }
+      };
 
-        window.mq_set_progress = function (percent) {
-            var fill = document.getElementById("loading-fill");
-            var label = document.getElementById("loading-label");
-            var status = document.getElementById("splash-status");
-
-            if (fill) fill.style.width = (percent * 0.94) + "%";
-            if (label) label.textContent = Math.round(percent) + "%";
-
-            if (status) {
-                if (percent >= 100) status.textContent = "READY!";
-                else if (percent > 90) status.textContent = "Preparing character...";
-                else if (percent > 40) status.textContent = "Loading models...";
-                else if (percent > 10) status.textContent = "Connecting to engine...";
-            }
-        };
-
-        window.mq_hide_splash = function () {
-            var splash = document.getElementById("splash");
-            if (splash) {
-                splash.classList.add("hidden");
-            }
-            var canvas = document.getElementById("glcanvas");
-            if (canvas) {
-                canvas.focus();
-            }
-        };
-
-        window.mq_shutdown_game = function () {
-            if (window.TV_PAL && typeof window.TV_PAL.shutdown === "function") {
-                window.TV_PAL.shutdown();
-            }
-            try {
-                if (window.tizen && tizen.application) {
-                    tizen.application.getCurrentApplication().exit();
-                    return;
-                }
-                if (window.webOS && typeof window.webOS.platformBack === "function") {
-                    window.webOS.platformBack();
-                    return;
-                }
-            } catch (error) {
-                console.error("[ToonDash] platform shutdown failed:", error);
-            }
+      window.mq_shutdown_game = function () {
+        var tryWindowClose = true;
+        try {
+          if (window.TV_PAL && typeof window.TV_PAL.shutdown === "function") {
+            tryWindowClose = window.TV_PAL.shutdown() !== false;
+          }
+          if (tryWindowClose) {
             window.close();
-        };
+          }
+        } catch (error) {
+          console.error("[ToonDash] platform shutdown failed:", error);
+        }
+      };
 
-        // --- Audio Visibility Handler (FireTV Home Button Fix) ---
-        var audioContexts = [];
-        (function () {
-            var OldAudioContext = window.AudioContext || window.webkitAudioContext;
-            if (OldAudioContext) {
-                window.AudioContext = window.webkitAudioContext = function () {
-                    var ctx = new OldAudioContext();
-                    audioContexts.push(ctx);
-                    return ctx;
-                };
-            }
-        })();
+      // --- Audio Visibility Handler (FireTV Home Button Fix) ---
+      var audioContexts = [];
+      (function () {
+        var OldAudioContext = window.AudioContext || window.webkitAudioContext;
+        if (OldAudioContext) {
+          window.AudioContext = window.webkitAudioContext = function () {
+            var ctx = new OldAudioContext();
+            audioContexts.push(ctx);
+            return ctx;
+          };
+        }
+      })();
 
-        document.addEventListener("visibilitychange", function () {
-            console.log("Visibility changed to: " + document.visibilityState);
-            audioContexts.forEach(function (ctx) {
-                if (document.visibilityState === 'hidden') {
-                    ctx.suspend();
-                } else if (document.visibilityState === 'visible') {
-                    ctx.resume();
-                }
-            });
+      document.addEventListener("visibilitychange", function () {
+        console.log("Visibility changed to: " + document.visibilityState);
+        audioContexts.forEach(function (ctx) {
+          if (document.visibilityState === "hidden") {
+            ctx.suspend();
+          } else if (document.visibilityState === "visible") {
+            ctx.resume();
+          }
         });
+      });
 
-        // Note: The function MUST be named 'register_plugin'
-        var ToonDashPlugin = {
-            register_plugin: function (importObject) {
-                // Register existing functions
-                importObject.env.mq_save_highscore = window.mq_save_highscore;
-                importObject.env.mq_load_highscore = window.mq_load_highscore;
-                importObject.env.mq_set_progress = window.mq_set_progress;
-                importObject.env.mq_hide_splash = window.mq_hide_splash;
-                importObject.env.mq_shutdown_game = window.mq_shutdown_game;
+      // Note: The function MUST be named 'register_plugin'
+      var ToonDashPlugin = {
+        register_plugin: function (importObject) {
+          // Register existing functions
+          importObject.env.mq_save_highscore = window.mq_save_highscore;
+          importObject.env.mq_load_highscore = window.mq_load_highscore;
+          importObject.env.mq_set_progress = window.mq_set_progress;
+          importObject.env.mq_hide_splash = window.mq_hide_splash;
+          importObject.env.mq_shutdown_game = window.mq_shutdown_game;
 
-                // TV input handlers - these will be connected to Rust functions
-                // We create wrapper functions that will be attached after WASM loads
-                window.mq_handle_up = function(pressed) {
-                    console.log("[ToonDash] mq_handle_up called (WASM may not be ready)");
-                };
-                window.mq_handle_down = function(pressed) {
-                    console.log("[ToonDash] mq_handle_down called (WASM may not be ready)");
-                };
-                window.mq_handle_left = function(pressed) {
-                    console.log("[ToonDash] mq_handle_left called (WASM may not be ready)");
-                };
-                window.mq_handle_right = function(pressed) {
-                    console.log("[ToonDash] mq_handle_right called (WASM may not be ready)");
-                };
-                window.mq_handle_action = function(pressed) {
-                    console.log("[ToonDash] mq_handle_action called (WASM may not be ready)");
-                };
-                window.mq_handle_back = function(pressed) {
-                    console.log("[ToonDash] mq_handle_back called (WASM may not be ready)");
-                };
+          // TV input handlers - these will be connected to Rust functions
+          // We create wrapper functions that will be attached after WASM loads
+          window.mq_handle_up = function (pressed) {
+            console.log(
+              "[ToonDash] mq_handle_up called (WASM may not be ready)",
+            );
+          };
+          window.mq_handle_down = function (pressed) {
+            console.log(
+              "[ToonDash] mq_handle_down called (WASM may not be ready)",
+            );
+          };
+          window.mq_handle_left = function (pressed) {
+            console.log(
+              "[ToonDash] mq_handle_left called (WASM may not be ready)",
+            );
+          };
+          window.mq_handle_right = function (pressed) {
+            console.log(
+              "[ToonDash] mq_handle_right called (WASM may not be ready)",
+            );
+          };
+          window.mq_handle_action = function (pressed) {
+            console.log(
+              "[ToonDash] mq_handle_action called (WASM may not be ready)",
+            );
+          };
+          window.mq_handle_back = function (pressed) {
+            console.log(
+              "[ToonDash] mq_handle_back called (WASM may not be ready)",
+            );
+          };
 
-                // Store the actual Rust function references (will be updated after load)
-                window.__tvRustFunctions = {};
+          // Store the actual Rust function references (will be updated after load)
+          window.__tvRustFunctions = {};
 
-                // Register TV input handler functions with Macroquad
-                importObject.env.mq_handle_up = function(pressed) {
-                    if (window.__tvRustFunctions.up) {
-                        window.__tvRustFunctions.up(pressed);
-                    }
-                };
-                importObject.env.mq_handle_down = function(pressed) {
-                    if (window.__tvRustFunctions.down) {
-                        window.__tvRustFunctions.down(pressed);
-                    }
-                };
-                importObject.env.mq_handle_left = function(pressed) {
-                    if (window.__tvRustFunctions.left) {
-                        window.__tvRustFunctions.left(pressed);
-                    }
-                };
-                importObject.env.mq_handle_right = function(pressed) {
-                    if (window.__tvRustFunctions.right) {
-                        window.__tvRustFunctions.right(pressed);
-                    }
-                };
-                importObject.env.mq_handle_action = function(pressed) {
-                    if (window.__tvRustFunctions.action) {
-                        window.__tvRustFunctions.action(pressed);
-                    }
-                };
-                importObject.env.mq_handle_back = function(pressed) {
-                    if (window.__tvRustFunctions.back) {
-                        window.__tvRustFunctions.back(pressed);
-                    }
-                };
-
-                console.log("[ToonDash] TV input handlers registered");
+          // Register TV input handler functions with Macroquad
+          importObject.env.mq_handle_up = function (pressed) {
+            if (window.__tvRustFunctions.up) {
+              window.__tvRustFunctions.up(pressed);
             }
-        };
-
-        // Intercept WebAssembly.instantiateStreaming to capture the exports
-        var originalInstantiateStreaming = WebAssembly.instantiateStreaming;
-        WebAssembly.instantiateStreaming = function(response, imports) {
-            console.log("[ToonDash] Intercepting WebAssembly.instantiateStreaming...");
-            var promise = originalInstantiateStreaming.call(this, response, imports);
-            return promise.then(function(result) {
-                console.log("[ToonDash] WASM instantiateStreaming completed");
-
-                // Handle different result structures
-                var instance = null;
-                if (result && result.instance) {
-                    instance = result.instance;
-                } else if (result && result.module && result.module.exports) {
-                    // Some APIs return module with exports directly
-                    instance = result.module;
-                } else if (result && result.exports) {
-                    // Direct instance
-                    instance = result;
-                }
-
-                if (!instance || !instance.exports) {
-                    console.warn("[ToonDash] Could not extract exports from instantiateStreaming result:", result);
-                    return result;
-                }
-
-                var exports = instance.exports;
-                console.log("[ToonDash] Extracting TV input functions from exports...");
-                var exportNames = Object.keys(exports);
-                console.log("[ToonDash] WASM exports available: " + JSON.stringify(exportNames));
-
-                // Extract TV input functions from exports
-                window.__tvRustFunctions = {
-                    up: exports.mq_handle_up || null,
-                    down: exports.mq_handle_down || null,
-                    left: exports.mq_handle_left || null,
-                    right: exports.mq_handle_right || null,
-                    action: exports.mq_handle_action || null,
-                    back: exports.mq_handle_back || null
-                };
-
-                // Check which functions were found
-                var missing = [];
-                if (!window.__tvRustFunctions.up) missing.push('up');
-                if (!window.__tvRustFunctions.down) missing.push('down');
-                if (!window.__tvRustFunctions.left) missing.push('left');
-                if (!window.__tvRustFunctions.right) missing.push('right');
-                if (!window.__tvRustFunctions.action) missing.push('action');
-                if (!window.__tvRustFunctions.back) missing.push('back');
-
-                if (missing.length > 0) {
-                    console.error("[ToonDash] Missing Rust functions: " + JSON.stringify(missing));
-                } else {
-                    console.log("[ToonDash] All TV input functions connected!");
-
-                    // Update the window functions to call the actual Rust functions
-                    // These are called by tv-pal.js
-                    window.mq_handle_up = function(pressed) {
-                        if (window.__tvRustFunctions.up) {
-                            window.__tvRustFunctions.up(pressed);
-                        } else {
-                            console.warn("[ToonDash] mq_handle_up: Rust function not available");
-                        }
-                    };
-                    window.mq_handle_down = function(pressed) {
-                        if (window.__tvRustFunctions.down) {
-                            window.__tvRustFunctions.down(pressed);
-                        } else {
-                            console.warn("[ToonDash] mq_handle_down: Rust function not available");
-                        }
-                    };
-                    window.mq_handle_left = function(pressed) {
-                        if (window.__tvRustFunctions.left) {
-                            window.__tvRustFunctions.left(pressed);
-                        } else {
-                            console.warn("[ToonDash] mq_handle_left: Rust function not available");
-                        }
-                    };
-                    window.mq_handle_right = function(pressed) {
-                        if (window.__tvRustFunctions.right) {
-                            window.__tvRustFunctions.right(pressed);
-                        } else {
-                            console.warn("[ToonDash] mq_handle_right: Rust function not available");
-                        }
-                    };
-                    window.mq_handle_action = function(pressed) {
-                        if (window.__tvRustFunctions.action) {
-                            window.__tvRustFunctions.action(pressed);
-                        } else {
-                            console.warn("[ToonDash] mq_handle_action: Rust function not available");
-                        }
-                    };
-                    window.mq_handle_back = function(pressed) {
-                        if (window.__tvRustFunctions.back) {
-                            window.__tvRustFunctions.back(pressed);
-                        } else {
-                            console.warn("[ToonDash] mq_handle_back: Rust function not available");
-                        }
-                    };
-
-                    console.log("[ToonDash] Window functions updated to use Rust implementations!");
-                }
-
-                return result;
-            });
-        };
-
-        // Also intercept WebAssembly.instantiate for fallback
-        var originalInstantiate = WebAssembly.instantiate;
-        WebAssembly.instantiate = function(module, imports) {
-            console.log("[ToonDash] Intercepting WebAssembly.instantiate...");
-            var promise = originalInstantiate.call(this, module, imports);
-            return promise.then(function(result) {
-                console.log("[ToonDash] WASM instantiate completed");
-
-                // Handle different result structures
-                var instance = null;
-                if (result && result.instance) {
-                    instance = result.instance;
-                } else if (result && result.module && result.module.exports) {
-                    // Some APIs return module with exports directly
-                    instance = result.module;
-                } else if (result && result.exports) {
-                    // Direct instance
-                    instance = result;
-                }
-
-                if (!instance || !instance.exports) {
-                    console.warn("[ToonDash] Could not extract exports from instantiate result:", result);
-                    return result;
-                }
-
-                var exports = instance.exports;
-                console.log("[ToonDash] Extracting TV input functions from exports...");
-                var exportNames = Object.keys(exports);
-                console.log("[ToonDash] WASM exports available: " + JSON.stringify(exportNames));
-
-                // Extract TV input functions from exports
-                window.__tvRustFunctions = {
-                    up: exports.mq_handle_up || null,
-                    down: exports.mq_handle_down || null,
-                    left: exports.mq_handle_left || null,
-                    right: exports.mq_handle_right || null,
-                    action: exports.mq_handle_action || null,
-                    back: exports.mq_handle_back || null
-                };
-
-                // Check which functions were found
-                var missing = [];
-                if (!window.__tvRustFunctions.up) missing.push('up');
-                if (!window.__tvRustFunctions.down) missing.push('down');
-                if (!window.__tvRustFunctions.left) missing.push('left');
-                if (!window.__tvRustFunctions.right) missing.push('right');
-                if (!window.__tvRustFunctions.action) missing.push('action');
-                if (!window.__tvRustFunctions.back) missing.push('back');
-
-                if (missing.length > 0) {
-                    console.error("[ToonDash] Missing Rust functions: " + JSON.stringify(missing));
-                } else {
-                    console.log("[ToonDash] All TV input functions connected!");
-
-                    // Update the window functions to call the actual Rust functions
-                    // These are called by tv-pal.js
-                    window.mq_handle_up = function(pressed) {
-                        if (window.__tvRustFunctions.up) {
-                            window.__tvRustFunctions.up(pressed);
-                        } else {
-                            console.warn("[ToonDash] mq_handle_up: Rust function not available");
-                        }
-                    };
-                    window.mq_handle_down = function(pressed) {
-                        if (window.__tvRustFunctions.down) {
-                            window.__tvRustFunctions.down(pressed);
-                        } else {
-                            console.warn("[ToonDash] mq_handle_down: Rust function not available");
-                        }
-                    };
-                    window.mq_handle_left = function(pressed) {
-                        if (window.__tvRustFunctions.left) {
-                            window.__tvRustFunctions.left(pressed);
-                        } else {
-                            console.warn("[ToonDash] mq_handle_left: Rust function not available");
-                        }
-                    };
-                    window.mq_handle_right = function(pressed) {
-                        if (window.__tvRustFunctions.right) {
-                            window.__tvRustFunctions.right(pressed);
-                        } else {
-                            console.warn("[ToonDash] mq_handle_right: Rust function not available");
-                        }
-                    };
-                    window.mq_handle_action = function(pressed) {
-                        if (window.__tvRustFunctions.action) {
-                            window.__tvRustFunctions.action(pressed);
-                        } else {
-                            console.warn("[ToonDash] mq_handle_action: Rust function not available");
-                        }
-                    };
-                    window.mq_handle_back = function(pressed) {
-                        if (window.__tvRustFunctions.back) {
-                            window.__tvRustFunctions.back(pressed);
-                        } else {
-                            console.warn("[ToonDash] mq_handle_back: Rust function not available");
-                        }
-                    };
-
-                    console.log("[ToonDash] Window functions updated to use Rust implementations!");
-                }
-
-                return result;
-            });
-        };
-
-        // Wait for the entire page (and mq_js_bundle.js) to be fully loaded and parsed
-        window.addEventListener('load', function () {
-            console.log("Page loaded, initializing engine...");
-
-            var status = document.getElementById("splash-status");
-
-            // Safety check: Did the bundle actually load?
-            if (typeof miniquad_add_plugin === "undefined" || typeof load === "undefined") {
-                console.error("FATAL: mq_js_bundle.js failed to execute.");
-                if (status) status.textContent = "Error: Engine script failed.";
-                return;
+          };
+          importObject.env.mq_handle_down = function (pressed) {
+            if (window.__tvRustFunctions.down) {
+              window.__tvRustFunctions.down(pressed);
             }
+          };
+          importObject.env.mq_handle_left = function (pressed) {
+            if (window.__tvRustFunctions.left) {
+              window.__tvRustFunctions.left(pressed);
+            }
+          };
+          importObject.env.mq_handle_right = function (pressed) {
+            if (window.__tvRustFunctions.right) {
+              window.__tvRustFunctions.right(pressed);
+            }
+          };
+          importObject.env.mq_handle_action = function (pressed) {
+            if (window.__tvRustFunctions.action) {
+              window.__tvRustFunctions.action(pressed);
+            }
+          };
+          importObject.env.mq_handle_back = function (pressed) {
+            if (window.__tvRustFunctions.back) {
+              window.__tvRustFunctions.back(pressed);
+            }
+          };
 
-            initFpsOverlay();
+          console.log("[ToonDash] TV input handlers registered");
+        },
+      };
 
-            // Register plugin and load WASM
-            miniquad_add_plugin(ToonDashPlugin);
-            load("toon-dash.wasm");
+      // Intercept WebAssembly.instantiateStreaming to capture the exports
+      var originalInstantiateStreaming = WebAssembly.instantiateStreaming;
+      WebAssembly.instantiateStreaming = function (response, imports) {
+        console.log(
+          "[ToonDash] Intercepting WebAssembly.instantiateStreaming...",
+        );
+        var promise = originalInstantiateStreaming.call(
+          this,
+          response,
+          imports,
+        );
+        return promise.then(function (result) {
+          console.log("[ToonDash] WASM instantiateStreaming completed");
+
+          // Handle different result structures
+          var instance = null;
+          if (result && result.instance) {
+            instance = result.instance;
+          } else if (result && result.module && result.module.exports) {
+            // Some APIs return module with exports directly
+            instance = result.module;
+          } else if (result && result.exports) {
+            // Direct instance
+            instance = result;
+          }
+
+          if (!instance || !instance.exports) {
+            console.warn(
+              "[ToonDash] Could not extract exports from instantiateStreaming result:",
+              result,
+            );
+            return result;
+          }
+
+          var exports = instance.exports;
+          console.log(
+            "[ToonDash] Extracting TV input functions from exports...",
+          );
+          var exportNames = Object.keys(exports);
+          console.log(
+            "[ToonDash] WASM exports available: " + JSON.stringify(exportNames),
+          );
+
+          // Extract TV input functions from exports
+          window.__tvRustFunctions = {
+            up: exports.mq_handle_up || null,
+            down: exports.mq_handle_down || null,
+            left: exports.mq_handle_left || null,
+            right: exports.mq_handle_right || null,
+            action: exports.mq_handle_action || null,
+            back: exports.mq_handle_back || null,
+          };
+
+          // Check which functions were found
+          var missing = [];
+          if (!window.__tvRustFunctions.up) missing.push("up");
+          if (!window.__tvRustFunctions.down) missing.push("down");
+          if (!window.__tvRustFunctions.left) missing.push("left");
+          if (!window.__tvRustFunctions.right) missing.push("right");
+          if (!window.__tvRustFunctions.action) missing.push("action");
+          if (!window.__tvRustFunctions.back) missing.push("back");
+
+          if (missing.length > 0) {
+            console.error(
+              "[ToonDash] Missing Rust functions: " + JSON.stringify(missing),
+            );
+          } else {
+            console.log("[ToonDash] All TV input functions connected!");
+
+            // Update the window functions to call the actual Rust functions
+            // These are called by web/pal (TV_PAL → mq_handle_*)
+            window.mq_handle_up = function (pressed) {
+              if (window.__tvRustFunctions.up) {
+                window.__tvRustFunctions.up(pressed);
+              } else {
+                console.warn(
+                  "[ToonDash] mq_handle_up: Rust function not available",
+                );
+              }
+            };
+            window.mq_handle_down = function (pressed) {
+              if (window.__tvRustFunctions.down) {
+                window.__tvRustFunctions.down(pressed);
+              } else {
+                console.warn(
+                  "[ToonDash] mq_handle_down: Rust function not available",
+                );
+              }
+            };
+            window.mq_handle_left = function (pressed) {
+              if (window.__tvRustFunctions.left) {
+                window.__tvRustFunctions.left(pressed);
+              } else {
+                console.warn(
+                  "[ToonDash] mq_handle_left: Rust function not available",
+                );
+              }
+            };
+            window.mq_handle_right = function (pressed) {
+              if (window.__tvRustFunctions.right) {
+                window.__tvRustFunctions.right(pressed);
+              } else {
+                console.warn(
+                  "[ToonDash] mq_handle_right: Rust function not available",
+                );
+              }
+            };
+            window.mq_handle_action = function (pressed) {
+              if (window.__tvRustFunctions.action) {
+                window.__tvRustFunctions.action(pressed);
+              } else {
+                console.warn(
+                  "[ToonDash] mq_handle_action: Rust function not available",
+                );
+              }
+            };
+            window.mq_handle_back = function (pressed) {
+              if (window.__tvRustFunctions.back) {
+                window.__tvRustFunctions.back(pressed);
+              } else {
+                console.warn(
+                  "[ToonDash] mq_handle_back: Rust function not available",
+                );
+              }
+            };
+
+            console.log(
+              "[ToonDash] Window functions updated to use Rust implementations!",
+            );
+          }
+
+          return result;
         });
+      };
+
+      // Also intercept WebAssembly.instantiate for fallback
+      var originalInstantiate = WebAssembly.instantiate;
+      WebAssembly.instantiate = function (module, imports) {
+        console.log("[ToonDash] Intercepting WebAssembly.instantiate...");
+        var promise = originalInstantiate.call(this, module, imports);
+        return promise.then(function (result) {
+          console.log("[ToonDash] WASM instantiate completed");
+
+          // Handle different result structures
+          var instance = null;
+          if (result && result.instance) {
+            instance = result.instance;
+          } else if (result && result.module && result.module.exports) {
+            // Some APIs return module with exports directly
+            instance = result.module;
+          } else if (result && result.exports) {
+            // Direct instance
+            instance = result;
+          }
+
+          if (!instance || !instance.exports) {
+            console.warn(
+              "[ToonDash] Could not extract exports from instantiate result:",
+              result,
+            );
+            return result;
+          }
+
+          var exports = instance.exports;
+          console.log(
+            "[ToonDash] Extracting TV input functions from exports...",
+          );
+          var exportNames = Object.keys(exports);
+          console.log(
+            "[ToonDash] WASM exports available: " + JSON.stringify(exportNames),
+          );
+
+          // Extract TV input functions from exports
+          window.__tvRustFunctions = {
+            up: exports.mq_handle_up || null,
+            down: exports.mq_handle_down || null,
+            left: exports.mq_handle_left || null,
+            right: exports.mq_handle_right || null,
+            action: exports.mq_handle_action || null,
+            back: exports.mq_handle_back || null,
+          };
+
+          // Check which functions were found
+          var missing = [];
+          if (!window.__tvRustFunctions.up) missing.push("up");
+          if (!window.__tvRustFunctions.down) missing.push("down");
+          if (!window.__tvRustFunctions.left) missing.push("left");
+          if (!window.__tvRustFunctions.right) missing.push("right");
+          if (!window.__tvRustFunctions.action) missing.push("action");
+          if (!window.__tvRustFunctions.back) missing.push("back");
+
+          if (missing.length > 0) {
+            console.error(
+              "[ToonDash] Missing Rust functions: " + JSON.stringify(missing),
+            );
+          } else {
+            console.log("[ToonDash] All TV input functions connected!");
+
+            // Update the window functions to call the actual Rust functions
+            // These are called by web/pal (TV_PAL → mq_handle_*)
+            window.mq_handle_up = function (pressed) {
+              if (window.__tvRustFunctions.up) {
+                window.__tvRustFunctions.up(pressed);
+              } else {
+                console.warn(
+                  "[ToonDash] mq_handle_up: Rust function not available",
+                );
+              }
+            };
+            window.mq_handle_down = function (pressed) {
+              if (window.__tvRustFunctions.down) {
+                window.__tvRustFunctions.down(pressed);
+              } else {
+                console.warn(
+                  "[ToonDash] mq_handle_down: Rust function not available",
+                );
+              }
+            };
+            window.mq_handle_left = function (pressed) {
+              if (window.__tvRustFunctions.left) {
+                window.__tvRustFunctions.left(pressed);
+              } else {
+                console.warn(
+                  "[ToonDash] mq_handle_left: Rust function not available",
+                );
+              }
+            };
+            window.mq_handle_right = function (pressed) {
+              if (window.__tvRustFunctions.right) {
+                window.__tvRustFunctions.right(pressed);
+              } else {
+                console.warn(
+                  "[ToonDash] mq_handle_right: Rust function not available",
+                );
+              }
+            };
+            window.mq_handle_action = function (pressed) {
+              if (window.__tvRustFunctions.action) {
+                window.__tvRustFunctions.action(pressed);
+              } else {
+                console.warn(
+                  "[ToonDash] mq_handle_action: Rust function not available",
+                );
+              }
+            };
+            window.mq_handle_back = function (pressed) {
+              if (window.__tvRustFunctions.back) {
+                window.__tvRustFunctions.back(pressed);
+              } else {
+                console.warn(
+                  "[ToonDash] mq_handle_back: Rust function not available",
+                );
+              }
+            };
+
+            console.log(
+              "[ToonDash] Window functions updated to use Rust implementations!",
+            );
+          }
+
+          return result;
+        });
+      };
+
+      // Wait for the entire page (and mq_js_bundle.js) to be fully loaded and parsed
+      window.addEventListener("load", function () {
+        console.log("Page loaded, initializing engine...");
+
+        var status = document.getElementById("splash-status");
+
+        // Safety check: Did the bundle actually load?
+        if (
+          typeof miniquad_add_plugin === "undefined" ||
+          typeof load === "undefined"
+        ) {
+          console.error("FATAL: mq_js_bundle.js failed to execute.");
+          if (status) status.textContent = "Error: Engine script failed.";
+          return;
+        }
+
+        initFpsOverlay();
+
+        // Register plugin and load WASM
+        miniquad_add_plugin(ToonDashPlugin);
+        load("toon-dash.wasm");
+      });
     </script>
-</body>
-
+  </body>
 </html>

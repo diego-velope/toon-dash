@@ -1,7 +1,7 @@
 // src/main.rs
 //! Main entry point for Toon Dash
 
-use macroquad::audio::{load_sound, play_sound, set_sound_volume, PlaySoundParams};
+use macroquad::audio::{load_sound, play_sound, set_sound_volume, stop_sound, PlaySoundParams};
 use macroquad::prelude::*;
 use toon_dash::game::*;
 use toon_dash::input::*;
@@ -61,6 +61,7 @@ async fn main() {
     let mut select_char_focused = false;
     let mut quit_confirm_close_focused = false;
     let mut smoothed_speed_multiplier = 1.0_f32;
+    let mut shutdown_flow = ShutdownFlow::default();
 
     // Load models and audio
     info!("Loading assets...");
@@ -97,6 +98,16 @@ async fn main() {
         // Process input
         input.update();
 
+        if shutdown_flow.stage == ShutdownStage::Requested {
+            stop_sound(&bgm);
+            shutdown_flow.mark_finalizing();
+        }
+
+        if shutdown_flow.stage == ShutdownStage::Finalizing {
+            toon_dash::game::loading::shutdown_game();
+            break;
+        }
+
         // Smooth progression avoids visible hitches when combo spikes score.
         let target_speed_multiplier = 1.0 + (game_state.score / 5000.0);
         smoothed_speed_multiplier += (target_speed_multiplier - smoothed_speed_multiplier) * 0.05;
@@ -104,10 +115,12 @@ async fn main() {
         let scaled_dt = dt * total_speed;
         renderer.set_speed_factor(total_speed);
 
-        // Update audio volume dynamically based on logic: min(master, music)
-        let effective_vol =
-            game_settings.master_volume.min(game_settings.music_volume) as f32 / 10.0;
-        set_sound_volume(&bgm, effective_vol);
+        if !shutdown_flow.is_active() {
+            // Update audio volume dynamically based on logic: min(master, music)
+            let effective_vol =
+                game_settings.master_volume.min(game_settings.music_volume) as f32 / 10.0;
+            set_sound_volume(&bgm, effective_vol);
+        }
 
         // Handle game logic based on current screen
         match game_state.screen {
@@ -270,7 +283,7 @@ async fn main() {
                         }
                         if input.is_action_just_pressed() {
                             if quit_confirm_close_focused {
-                                toon_dash::game::loading::shutdown_game();
+                                shutdown_flow.request_close();
                             } else {
                                 sub_screen = MenuSubScreen::None;
                             }
@@ -505,6 +518,7 @@ async fn main() {
             &character_choice,
             select_char_focused,
             quit_confirm_close_focused,
+            !shutdown_flow.is_active(),
         );
 
         next_frame().await;

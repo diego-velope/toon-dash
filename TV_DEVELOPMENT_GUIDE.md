@@ -27,7 +27,7 @@ Legacy Samsung/Tizen Chromium 69 compatibility notes were moved to `.cursor/rule
 High-level flow:
 
 1. TV remote event arrives in browser/webview
-2. `web/tv-pal.js` normalizes platform keycodes to logical actions
+2. `web/pal/` normalizes platform keycodes to logical actions (`detect-platform.js` + `platforms/*` + `pal-core.js`)
 3. `window.mq_handle_*` forwards into Rust WASM exports
 4. `src/tv_input_manager.rs` stores action state
 5. `src/input/tv_input.rs` exposes frame-safe input to game loop
@@ -36,21 +36,31 @@ High-level flow:
 ## Platform Strategy (Chromium 80+)
 
 - Target modern TV/browser engines (Chromium 80+).
-- Keep key mapping flexible and platform-identified in `tv-pal.js`.
+- Keep key mapping flexible and platform-identified under `web/pal/platforms/`.
 - Prefer one input abstraction (`TvAction`) for all TV targets.
 - Treat Samsung Chromium 69 era constraints as legacy guidance only.
 
 ## Build and Deploy Notes
 
 - Keep WASM exports stable (`mq_handle_up/down/left/right/action/back`).
-- Ensure `web/index.html` loads `tv-pal.js` before the WASM bundle.
+- Ensure `web/index.html` loads `web/pal/*.js` (namespace → detect → platforms → `pal-core.js`) before the WASM bundle.
 - Keep `mq_js_bundle.js` and `toon-dash.wasm` in sync after each build.
+
+## Close / Shutdown Contract
+
+- Rust requests close through `mq_shutdown_game` after local teardown (stop looping music, stop non-essential render work).
+- `web/index.html` delegates shutdown to `window.TV_PAL.shutdown()` first.
+- PAL platform adapters perform host-specific close when available:
+  - Tizen: `tizen.application.getCurrentApplication().exit()`
+  - FireTV / Android wrapper: `AndroidJsInterface.shutdown()`
+  - webOS: `webOS.platformBack()`
+- If no platform host close handler is available, fallback is `window.close()`.
 
 ## Troubleshooting
 
 If input is not working:
 
-1. Verify platform detection logs in `tv-pal.js`
+1. Verify platform detection logs in `[TV-PAL]` console output from `pal-core.js`
 2. Verify WASM export connection logs in `web/index.html`
 3. Test with `?debug` query parameter to log key events
 4. Confirm back keycode emitted by actual target device
