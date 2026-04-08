@@ -31,9 +31,9 @@
                     'ColorF2Yellow',
                     'ColorF3Blue'
                 ]);
-                console.log('[TV-PAL] Tizen media keys registered successfully');
+                console.log('[PAL] Tizen media keys registered successfully');
             } catch (e) {
-                console.warn('[TV-PAL] Tizen key registration failed:', e);
+                console.warn('[PAL] Tizen key registration failed:', e);
             }
         },
         shutdownHost: function () {

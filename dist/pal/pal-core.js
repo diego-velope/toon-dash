@@ -42,7 +42,7 @@
     }
 
     function forwardToRust(action, pressed) {
-        debugLog('[TV-PAL] Key: ' + action + ' = ' + pressed);
+        debugLog('[PAL] Key: ' + action + ' = ' + pressed);
 
         var functionMap = {
             up: 'mq_handle_up',
