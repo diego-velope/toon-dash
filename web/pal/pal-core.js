@@ -55,7 +55,7 @@
 
         var funcName = functionMap[action];
         if (!funcName) {
-            console.warn('[TV-PAL] Unknown action:', action);
+            console.warn('[PAL] Unknown action:', action);
             return;
         }
 
@@ -63,10 +63,10 @@
             try {
                 window[funcName](pressed ? 1 : 0);
             } catch (e) {
-                console.warn('[TV-PAL] Failed to call', funcName + ':', e);
+                console.warn('[PAL] Failed to call', funcName + ':', e);
             }
         } else if (debugMode) {
-            console.warn('[TV-PAL] Function not available:', funcName);
+            console.warn('[PAL] Function not available:', funcName);
         }
     }
 
@@ -80,7 +80,7 @@
         if (!isBackKeyCode(keyCode)) return false;
 
         debugLog(
-            '[TV-PAL BACK] keyCode=' +
+            '[PAL BACK] keyCode=' +
                 keyCode +
                 ', code="' +
                 e.code +
@@ -102,7 +102,7 @@
         var action = mapKeycodeToAction(keyCode);
 
         debugLog(
-            '[TV-PAL] Keydown: keyCode=' +
+            '[PAL] Keydown: keyCode=' +
                 keyCode +
                 ', code="' +
                 e.code +
@@ -132,7 +132,7 @@
         var action = mapKeycodeToAction(keyCode);
 
         debugLog(
-            '[TV-PAL] Keyup: keyCode=' +
+            '[PAL] Keyup: keyCode=' +
                 keyCode +
                 ', code="' +
                 e.code +
@@ -164,7 +164,7 @@
         var action = mapKeycodeToAction(keyCode);
 
         debugLog(
-            '[TV-PAL KEY] keyCode=' +
+            '[PAL KEY] keyCode=' +
                 keyCode +
                 ', code="' +
                 e.code +
@@ -181,7 +181,7 @@
         options = options || {};
 
         if (isInitialized) {
-            console.warn('[TV-PAL] Already initialized');
+            console.warn('[PAL] Already initialized');
             return;
         }
 
@@ -191,14 +191,14 @@
         var impl =
             TDP.platforms[currentPlatform] || TDP.platforms[P.BROWSER];
         if (!impl) {
-            console.error('[TV-PAL] No platform adapter for', currentPlatform);
+            console.error('[PAL] No platform adapter for', currentPlatform);
             return;
         }
 
         keyMapping = impl.keyMapping;
 
-        debugLog('[TV-PAL] Initializing for platform:', currentPlatform);
-        debugLog('[TV-PAL] Key mappings:', keyMapping);
+        debugLog('[PAL] Initializing for platform:', currentPlatform);
+        debugLog('[PAL] Key mappings:', keyMapping);
 
         if (typeof impl.registerKeys === 'function') {
             impl.registerKeys({ currentPlatform: currentPlatform });
@@ -220,7 +220,7 @@
         if (debugMode) {
             window.addEventListener('keydown', logAllKeyEvents, true);
             window.addEventListener('keyup', logAllKeyEvents, true);
-            debugLog('[TV-PAL] Debug mode enabled - all key events will be logged');
+            debugLog('[PAL] Debug mode enabled - all key events will be logged');
         }
 
         if (debugMode) {
@@ -229,7 +229,7 @@
                 function (e) {
                     var keyCode = e.keyCode || e.which;
                     console.log(
-                        '[TV-PAL DEBUG] Raw keydown: keyCode=' +
+                        '[PAL DEBUG] Raw keydown: keyCode=' +
                             keyCode +
                             ', code="' +
                             e.code +
@@ -244,12 +244,12 @@
 
             window.addEventListener('popstate', function () {
                 console.log(
-                    '[TV-PAL DEBUG] popstate event detected (back button pressed as navigation)'
+                    '[PAL DEBUG] popstate event detected (back button pressed as navigation)'
                 );
             });
 
             window.addEventListener('gamepadconnected', function (e) {
-                console.log('[TV-PAL DEBUG] Gamepad connected:', e.gamepad);
+                console.log('[PAL DEBUG] Gamepad connected:', e.gamepad);
             });
         }
 
@@ -260,7 +260,7 @@
         });
 
         isInitialized = true;
-        debugLog('[TV-PAL] Initialization complete');
+        debugLog('[PAL] Initialization complete');
     }
 
     /**
@@ -282,17 +282,17 @@
             try {
                 var hostHandledExit = impl.shutdownHost() === true;
                 if (hostHandledExit) {
-                    debugLog('[TV-PAL] Shutdown complete (host handled app exit)');
+                    debugLog('[PAL] Shutdown complete (host handled app exit)');
                     return false;
                 }
             } catch (e) {
-                console.warn('[TV-PAL] shutdownHost failed:', e);
-                debugLog('[TV-PAL] Shutdown complete (host hook failed, fallback may run)');
+                console.warn('[PAL] shutdownHost failed:', e);
+                debugLog('[PAL] Shutdown complete (host hook failed, fallback may run)');
                 return true;
             }
         }
 
-        debugLog('[TV-PAL] Shutdown complete');
+        debugLog('[PAL] Shutdown complete');
         return true;
     }
 
@@ -306,7 +306,7 @@
 
     function _handleAndroidKeyEvent(keyCode, state) {
         debugLog(
-            '[TV-PAL] _handleAndroidKeyEvent CALLED: keyCode=' + keyCode + ', state=' + state
+            '[PAL] _handleAndroidKeyEvent CALLED: keyCode=' + keyCode + ', state=' + state
         );
 
         var webKeyCode = keyCode;
@@ -317,10 +317,10 @@
         if (action) {
             var pressed = state === 'down';
             forwardToRust(action, pressed);
-            debugLog('[TV-PAL] Android key forwarded: ' + action + ' = ' + pressed);
+            debugLog('[PAL] Android key forwarded: ' + action + ' = ' + pressed);
         } else {
             debugLog(
-                '[TV-PAL] Android key not mapped: keyCode=' +
+                '[PAL] Android key not mapped: keyCode=' +
                     keyCode +
                     ' (webKeyCode=' +
                     webKeyCode +
@@ -343,7 +343,7 @@
 
     window._handleAndroidKeyEvent = function (keyCode, state) {
         debugLog(
-            '[TV-PAL GLOBAL] window._handleAndroidKeyEvent called with:',
+            '[PAL GLOBAL] window._handleAndroidKeyEvent called with:',
             keyCode,
             state
         );
@@ -351,13 +351,13 @@
             TV_PAL._handleAndroidKeyEvent(keyCode, state);
         } else {
             console.error(
-                '[TV-PAL] TV_PAL not initialized when Android called _handleAndroidKeyEvent'
+                '[PAL] TV_PAL not initialized when Android called _handleAndroidKeyEvent'
             );
         }
     };
 
     debugLog(
-        '[TV-PAL] Global functions registered. window._handleAndroidKeyEvent =',
+        '[PAL] Global functions registered. window._handleAndroidKeyEvent =',
         typeof window._handleAndroidKeyEvent
     );
 
