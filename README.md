@@ -33,6 +33,10 @@ Toon Dash was constructed with performance and extreme portability in mind:
 - **Models & Assets:** GLTF/GLB models are parsed using the `gltf` crate. We use Macroquad's 3D rendering pipeline to draw the animated meshes manually to the screen. 
 - **WASM Interop:** Designed specifically to compile straight to WebAssembly without relying on `wasm-bindgen`, utilizing Macroquad's custom `mq_js_bundle.js` for pure, optimal web delivery.
 
+## Documentation
+
+Design and planning notes live in [`docs/`](docs/), including the [performance and code quality](docs/perf-and-code-quality.md) pass checklist.
+
 ## 🧰 Prerequisites
 
 Before you can build or run the game, you'll need the Rust toolchain installed on your machine.

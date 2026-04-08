@@ -157,8 +157,16 @@
     <canvas id="glcanvas" tabindex="1" width="1920" height="1080"></canvas>
     <div id="fps-overlay" aria-hidden="true"></div>
 
-    <!-- TV Platform Abstraction Layer (PAL) - Load BEFORE WASM -->
-    <script src="tv-pal.js?v=1"></script>
+    <!-- TV Platform Abstraction Layer (PAL) - Load BEFORE WASM; order matters -->
+    <script src="pal/namespace.js?v=2"></script>
+    <script src="pal/detect-platform.js?v=2"></script>
+    <script src="pal/platforms/tizen.js?v=2"></script>
+    <script src="pal/platforms/webos.js?v=2"></script>
+    <script src="pal/platforms/vizio.js?v=2"></script>
+    <script src="pal/platforms/firetv.js?v=2"></script>
+    <script src="pal/platforms/android-tv.js?v=2"></script>
+    <script src="pal/platforms/browser.js?v=2"></script>
+    <script src="pal/pal-core.js?v=2"></script>
 
     <script src="mq_js_bundle.js?v=1"></script>
 
@@ -248,22 +256,17 @@
         };
 
         window.mq_shutdown_game = function () {
-            if (window.TV_PAL && typeof window.TV_PAL.shutdown === "function") {
-                window.TV_PAL.shutdown();
-            }
+            var tryWindowClose = true;
             try {
-                if (window.tizen && tizen.application) {
-                    tizen.application.getCurrentApplication().exit();
-                    return;
+                if (window.TV_PAL && typeof window.TV_PAL.shutdown === "function") {
+                    tryWindowClose = window.TV_PAL.shutdown() !== false;
                 }
-                if (window.webOS && typeof window.webOS.platformBack === "function") {
-                    window.webOS.platformBack();
-                    return;
+                if (tryWindowClose) {
+                    window.close();
                 }
             } catch (error) {
                 console.error("[ToonDash] platform shutdown failed:", error);
             }
-            window.close();
         };
 
         // --- Audio Visibility Handler (FireTV Home Button Fix) ---
@@ -415,7 +418,7 @@
                     console.log("[ToonDash] All TV input functions connected!");
 
                     // Update the window functions to call the actual Rust functions
-                    // These are called by tv-pal.js
+                    // These are called by web/pal (TV_PAL → mq_handle_*)
                     window.mq_handle_up = function(pressed) {
                         if (window.__tvRustFunctions.up) {
                             window.__tvRustFunctions.up(pressed);
@@ -521,7 +524,7 @@
                     console.log("[ToonDash] All TV input functions connected!");
 
                     // Update the window functions to call the actual Rust functions
-                    // These are called by tv-pal.js
+                    // These are called by web/pal (TV_PAL → mq_handle_*)
                     window.mq_handle_up = function(pressed) {
                         if (window.__tvRustFunctions.up) {
                             window.__tvRustFunctions.up(pressed);

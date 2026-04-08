@@ -48,6 +48,11 @@ package_dist() {
     # Don't fail if there's no custom js now
     cp "$WEB_DIR"/*.js "$DIST_DIR/" 2>/dev/null || true
 
+    # Modular TV PAL (see web/pal/)
+    if [ -d "$WEB_DIR/pal" ]; then
+        cp -r "$WEB_DIR/pal" "$DIST_DIR/"
+    fi
+
     # The web version needs the assets folder! Let's make sure it's packed in the dist directory.
     cp -r "assets" "$DIST_DIR/"
 

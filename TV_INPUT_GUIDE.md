@@ -23,12 +23,12 @@ Logical actions:
 Core files:
 - `src/tv_input_manager.rs`
 - `src/input/tv_input.rs`
-- `web/tv-pal.js`
+- `web/pal/` (modular TV PAL; entry `pal/pal-core.js`)
 - `web/index.html`
 
 ## Data Flow
 
-1. Remote key event captured in `tv-pal.js`
+1. Remote key event captured in `web/pal/pal-core.js` (after platform detection + key tables)
 2. Keycode mapped to logical action by platform
 3. JS forwards action to `window.mq_handle_*`
 4. Rust exported `mq_handle_*` updates `TvInputManager`
@@ -63,14 +63,14 @@ Required exported handlers:
 
 Any rename requires synchronized changes in:
 - Rust exports (`src/tv_input_manager.rs`)
-- JS forward map (`web/tv-pal.js`)
+- JS forward map (`web/pal/pal-core.js` → `window.mq_handle_*`)
 - WASM hookup (`web/index.html`)
 
 ## Adding a New Action
 
 1. Add enum variant in `TvAction`
 2. Add manager state handling and export handler in Rust
-3. Add mapping and forward map entry in `tv-pal.js`
+3. Add mapping in the right `web/pal/platforms/*.js` file and ensure `pal-core.js` forward map covers the action
 4. Hook export in `index.html`
 5. Read in `TvInput::update()`
 6. Consume in `main.rs` or relevant gameplay/menu modules

@@ -20,7 +20,7 @@ pub const GAME_NAME: &str = "Toon Dash";
 pub const TARGET_FPS: u32 = 30;
 
 // Export TV input handler functions for WASM builds
-// These are called by JavaScript's tv-pal.js via Macroquad's plugin system
+// These are called by JavaScript TV PAL (`web/pal/pal-core.js`) via Macroquad's plugin system
 #[cfg(target_arch = "wasm32")]
 pub use tv_input_manager::{
     mq_handle_up, mq_handle_down, mq_handle_left, mq_handle_right,
