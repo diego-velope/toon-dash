@@ -4,7 +4,6 @@
 pub mod game;
 pub mod input;
 pub mod models;
-pub mod platform;
 pub mod rendering;
 
 // TV Input Manager for WASM builds (platform abstraction layer)

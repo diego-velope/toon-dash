@@ -193,68 +193,8 @@ async fn main() {
 
                     // ── Options overlay (volume & speed control) ───────────────
                     MenuSubScreen::Options => {
-                        if input.is_back_just_pressed() {
+                        if game_settings.handle_options_input(&input, false) {
                             sub_screen = MenuSubScreen::None;
-                        }
-                        if input.is_up_just_pressed() {
-                            if game_settings.focused_row > 0 {
-                                game_settings.focused_row -= 1;
-                            }
-                        }
-                        if input.is_down_just_pressed() {
-                            if game_settings.focused_row < 3 {
-                                game_settings.focused_row += 1;
-                            }
-                        }
-                        if input.is_left_just_pressed() {
-                            match game_settings.focused_row {
-                                0 => {
-                                    if game_settings.master_volume > 0 {
-                                        game_settings.master_volume -= 1;
-                                    }
-                                }
-                                1 => {
-                                    if game_settings.music_volume > 0 {
-                                        game_settings.music_volume -= 1;
-                                    }
-                                }
-                                2 => {
-                                    if game_settings.effects_volume > 0 {
-                                        game_settings.effects_volume -= 1;
-                                    }
-                                }
-                                3 => {
-                                    if game_settings.game_speed > 1 {
-                                        game_settings.game_speed -= 1;
-                                    }
-                                }
-                                _ => {}
-                            }
-                        }
-                        if input.is_right_just_pressed() {
-                            match game_settings.focused_row {
-                                0 => {
-                                    if game_settings.master_volume < 10 {
-                                        game_settings.master_volume += 1;
-                                    }
-                                }
-                                1 => {
-                                    if game_settings.music_volume < 10 {
-                                        game_settings.music_volume += 1;
-                                    }
-                                }
-                                2 => {
-                                    if game_settings.effects_volume < 10 {
-                                        game_settings.effects_volume += 1;
-                                    }
-                                }
-                                3 => {
-                                    if game_settings.game_speed < 10 {
-                                        game_settings.game_speed += 1;
-                                    }
-                                }
-                                _ => {}
-                            }
                         }
                     }
 
@@ -369,7 +309,6 @@ async fn main() {
                 }
 
                 game_state.update_score(
-                    dt,
                     player.distance_traveled,
                     game_state.coins + coins,
                 );
@@ -377,71 +316,8 @@ async fn main() {
             GameScreen::Paused => {
                 // If the options menu is open, capture input exclusively for it
                 if sub_screen == MenuSubScreen::Options {
-                    if input.is_back_just_pressed()
-                        || input.is_action_just_pressed() && game_settings.focused_row == 4
-                    {
-                        // We will add a "Back" button at row 4 or just use ECS/Back button
+                    if game_settings.handle_options_input(&input, true) {
                         sub_screen = MenuSubScreen::None;
-                    }
-                    if input.is_up_just_pressed() {
-                        if game_settings.focused_row > 0 {
-                            game_settings.focused_row -= 1;
-                        }
-                    }
-                    if input.is_down_just_pressed() {
-                        if game_settings.focused_row < 3 {
-                            game_settings.focused_row += 1;
-                        }
-                    }
-                    if input.is_left_just_pressed() {
-                        match game_settings.focused_row {
-                            0 => {
-                                if game_settings.master_volume > 0 {
-                                    game_settings.master_volume -= 1;
-                                }
-                            }
-                            1 => {
-                                if game_settings.music_volume > 0 {
-                                    game_settings.music_volume -= 1;
-                                }
-                            }
-                            2 => {
-                                if game_settings.effects_volume > 0 {
-                                    game_settings.effects_volume -= 1;
-                                }
-                            }
-                            3 => {
-                                if game_settings.game_speed > 1 {
-                                    game_settings.game_speed -= 1;
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                    if input.is_right_just_pressed() {
-                        match game_settings.focused_row {
-                            0 => {
-                                if game_settings.master_volume < 10 {
-                                    game_settings.master_volume += 1;
-                                }
-                            }
-                            1 => {
-                                if game_settings.music_volume < 10 {
-                                    game_settings.music_volume += 1;
-                                }
-                            }
-                            2 => {
-                                if game_settings.effects_volume < 10 {
-                                    game_settings.effects_volume += 1;
-                                }
-                            }
-                            3 => {
-                                if game_settings.game_speed < 10 {
-                                    game_settings.game_speed += 1;
-                                }
-                            }
-                            _ => {}
-                        }
                     }
                 } else {
                     if input.is_up_just_pressed() {

@@ -130,20 +130,29 @@ fn append_primitive(
 }
 
 /// Draw a mesh with translation and uniform scale (world Y-up, +Z forward).
-pub fn draw_mesh_at(mesh: &Mesh, position: Vec3, scale: f32) {
-    draw_mesh_at_rot(mesh, position, scale, Quat::IDENTITY);
+///
+/// `scratch` is cleared and reused for transformed vertices; keep one buffer per frame path (e.g. on [`crate::rendering::GameRenderer`]).
+pub fn draw_mesh_at(mesh: &Mesh, position: Vec3, scale: f32, scratch: &mut Vec<Vertex>) {
+    draw_mesh_at_rot(mesh, position, scale, Quat::IDENTITY, scratch);
 }
 
 /// Same as [`draw_mesh_at`] but applies a rotation in model space first (e.g. fix Kenney export facing).
-pub fn draw_mesh_at_rot(mesh: &Mesh, position: Vec3, scale: f32, rot: Quat) {
-    let mut verts = Vec::with_capacity(mesh.vertices.len());
+pub fn draw_mesh_at_rot(
+    mesh: &Mesh,
+    position: Vec3,
+    scale: f32,
+    rot: Quat,
+    scratch: &mut Vec<Vertex>,
+) {
+    scratch.clear();
+    scratch.reserve(mesh.vertices.len());
     for v in &mesh.vertices {
         let mut nv = *v;
         nv.position = rot * (v.position * scale) + position;
-        verts.push(nv);
+        scratch.push(nv);
     }
     let m = Mesh {
-        vertices: verts,
+        vertices: std::mem::take(scratch),
         indices: mesh.indices.clone(),
         texture: mesh.texture.clone(),
     };
@@ -151,16 +160,23 @@ pub fn draw_mesh_at_rot(mesh: &Mesh, position: Vec3, scale: f32, rot: Quat) {
 }
 
 /// Draw a mesh with translation, non-uniform scale (Vec3), and rotation.
-pub fn draw_mesh_at_transform(mesh: &Mesh, position: Vec3, scale: Vec3, rot: Quat) {
-    let mut verts = Vec::with_capacity(mesh.vertices.len());
+pub fn draw_mesh_at_transform(
+    mesh: &Mesh,
+    position: Vec3,
+    scale: Vec3,
+    rot: Quat,
+    scratch: &mut Vec<Vertex>,
+) {
+    scratch.clear();
+    scratch.reserve(mesh.vertices.len());
     for v in &mesh.vertices {
         let mut nv = *v;
         // Multiply element-wise for non-uniform scale before rotating
         nv.position = rot * (v.position * scale) + position;
-        verts.push(nv);
+        scratch.push(nv);
     }
     let m = Mesh {
-        vertices: verts,
+        vertices: std::mem::take(scratch),
         indices: mesh.indices.clone(),
         texture: mesh.texture.clone(),
     };

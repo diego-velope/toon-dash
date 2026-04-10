@@ -5,6 +5,7 @@ use super::camera::GameCamera;
 use crate::game::*;
 use crate::models::{draw_mesh_at_rot, draw_mesh_at_transform, ModelManager};
 use glam::Quat;
+use macroquad::models::Vertex;
 use macroquad::prelude::*;
 use std::f32::consts::FRAC_PI_2;
 
@@ -27,6 +28,8 @@ pub struct GameRenderer {
     game_bg: Option<Texture2D>,
     font: Option<Font>,
     hud_cache: HudCache,
+    /// Reused each frame for mesh draw helpers to avoid per-call `Vec<Vertex>` allocations.
+    scratch_verts: Vec<Vertex>,
 }
 
 #[derive(Default)]
@@ -99,6 +102,7 @@ impl GameRenderer {
             game_bg: None,
             font: None,
             hud_cache: HudCache::new(),
+            scratch_verts: Vec::new(),
         }
     }
 
@@ -284,7 +288,7 @@ impl GameRenderer {
         );
     }
 
-    fn render_decorations(&self, player_z: f32, view_dist: f32) {
+    fn render_decorations(&mut self, player_z: f32, view_dist: f32) {
         // Deterministic hash based on Z-segment
         let start_z = (player_z / ROAD_TILE_STEP).floor() as i32;
         let end_z = ((player_z + view_dist) / ROAD_TILE_STEP).ceil() as i32;
@@ -324,6 +328,7 @@ impl GameRenderer {
                         vec3(-half_road - x_offset, -0.1, z_world),
                         2.0 * scale,
                         rot,
+                        &mut self.scratch_verts,
                     );
                 }
             }
@@ -342,6 +347,7 @@ impl GameRenderer {
                         vec3(half_road + x_offset, -0.1, z_world),
                         2.0 * scale,
                         rot,
+                        &mut self.scratch_verts,
                     );
                 }
             }
@@ -373,13 +379,19 @@ impl GameRenderer {
                 }
 
                 if let Some(mesh) = self.model_manager.mesh(decor_name) {
-                    draw_mesh_at_rot(mesh, vec3(x_pos, 0.0, z_world), scale, rot);
+                    draw_mesh_at_rot(
+                        mesh,
+                        vec3(x_pos, 0.0, z_world),
+                        scale,
+                        rot,
+                        &mut self.scratch_verts,
+                    );
                 }
             }
         }
     }
 
-    fn render_player(&self, player: &Player) {
+    fn render_player(&mut self, player: &Player) {
         let pos = player.position.to_vec3();
         let color = self.model_manager.get_color("character");
 
@@ -409,7 +421,7 @@ impl GameRenderer {
                 }
             }
 
-            draw_mesh_at_transform(mesh, pivot, scale, rot);
+            draw_mesh_at_transform(mesh, pivot, scale, rot, &mut self.scratch_verts);
         } else {
             let (height, y_offset) = if player.is_sliding() {
                 (0.5, 0.25)
@@ -433,7 +445,7 @@ impl GameRenderer {
         }
     }
 
-    fn render_obstacle(&self, obstacle: &Obstacle) {
+    fn render_obstacle(&mut self, obstacle: &Obstacle) {
         let pos = obstacle.position.to_vec3();
         let border = Color::from_rgba(30, 30, 30, 255);
 
@@ -445,6 +457,7 @@ impl GameRenderer {
                         pos + vec3(0.0, ROAD_SURFACE_Y, 0.0),
                         2.0,
                         Quat::from_rotation_y(0.0),
+                        &mut self.scratch_verts,
                     );
                 } else {
                     let color = self.model_manager.get_color("obstacle_low");
@@ -459,6 +472,7 @@ impl GameRenderer {
                         pos + vec3(0.0, 0.45, 0.0),
                         1.2,
                         Quat::from_rotation_y(0.0),
+                        &mut self.scratch_verts,
                     );
                 } else {
                     let color = self.model_manager.get_color("obstacle_high");
@@ -485,6 +499,7 @@ impl GameRenderer {
                         pos + vec3(0.0, ROAD_SURFACE_Y, 0.0),
                         2.2,
                         Quat::from_rotation_y(0.0),
+                        &mut self.scratch_verts,
                     );
                 } else {
                     let color = self.model_manager.get_color("obstacle_full");
@@ -495,7 +510,7 @@ impl GameRenderer {
         }
     }
 
-    fn render_collectible(&self, item: &Collectible, frame_time: f32) {
+    fn render_collectible(&mut self, item: &Collectible, frame_time: f32) {
         let pos = item.position.to_vec3();
         let (mesh_key, default_color) = match item.ctype {
             CollectibleType::Coin => ("coin", self.model_manager.get_color("coin")),
@@ -509,13 +524,19 @@ impl GameRenderer {
         let spin = Quat::from_rotation_y(frame_time * 3.0);
 
         if let Some(mesh) = self.model_manager.mesh(mesh_key) {
-            draw_mesh_at_rot(mesh, item_pos, 2.8 * pulse, spin);
+            draw_mesh_at_rot(
+                mesh,
+                item_pos,
+                2.8 * pulse,
+                spin,
+                &mut self.scratch_verts,
+            );
         } else {
             draw_sphere(item_pos, 0.3 * pulse, None, default_color);
         }
     }
 
-    fn render_track_segment(&self, segment: &TrackSegment) {
+    fn render_track_segment(&mut self, segment: &TrackSegment) {
         let z = segment.z_position;
         let color = self.model_manager.get_color("track_segment");
         let rot = Quat::from_rotation_y(-FRAC_PI_2);
@@ -525,7 +546,13 @@ impl GameRenderer {
                 for iz in 0..5 {
                     let ox = ix as f32 * ROAD_TILE_STEP;
                     let oz = z - 4.0 + iz as f32 * ROAD_TILE_STEP;
-                    draw_mesh_at_rot(mesh, vec3(ox, ROAD_SURFACE_Y, oz), ROAD_TILE_SCALE, rot);
+                    draw_mesh_at_rot(
+                        mesh,
+                        vec3(ox, ROAD_SURFACE_Y, oz),
+                        ROAD_TILE_SCALE,
+                        rot,
+                        &mut self.scratch_verts,
+                    );
                 }
             }
         } else {
@@ -566,29 +593,19 @@ impl GameRenderer {
         let sh = screen_height();
         let combo_text = &self.hud_cache.combo_text;
 
-        // Smooth pulse: starts at base size, grows, then returns to base size.
-        // combo_anim_timer counts down from 0.8 to 0.0.
-        let anim_duration = 0.8_f32;
-        let anim_progress = (1.0 - (game_state.combo_anim_timer / anim_duration))
-            .clamp(0.0, 1.0);
-        let pulse = (anim_progress * std::f32::consts::PI).sin().max(0.0);
-        let base_size: u16 = 65;
-        let pop_size: u16 = 35;
-        let font_size = base_size + (pulse * pop_size as f32) as u16;
-
         // Horizontal center, bottom of screen
         self.draw_font_text_centered(
             combo_text,
             sw / 2.0,
             sh - 36.0,
-            font_size,
+            65,
             if game_state.combo > 1 { YELLOW } else { WHITE },
         );
     }
 
     // ── MAIN MENU ───────────────────────────────────────────────────────
     fn render_main_menu(
-        &self,
+        &mut self,
         menu_nav: &MenuNavigator<MenuOption>,
         sub_screen: &MenuSubScreen,
         game_settings: &GameSettings,
@@ -734,7 +751,7 @@ impl GameRenderer {
 
     /// Render a rotating 3D character preview inside a screen-space rectangle.
     fn render_character_preview(
-        &self,
+        &mut self,
         choice: &CharacterChoice,
         panel_x: f32,
         panel_y: f32,
@@ -771,6 +788,7 @@ impl GameRenderer {
                 vec3(0.0, model_y, 0.0),
                 model_scale,
                 spin * quat_face_run_dir(),
+                &mut self.scratch_verts,
             );
 
             set_default_camera();
@@ -985,7 +1003,7 @@ impl GameRenderer {
     }
 
     // ── Character Select overlay ────────────────────────────────────────
-    fn render_character_select_overlay(&self, choice: &CharacterChoice) {
+    fn render_character_select_overlay(&mut self, choice: &CharacterChoice) {
         let sw = screen_width();
         let sh = screen_height();
         draw_rectangle(0.0, 0.0, sw, sh, Color::from_rgba(0, 0, 0, 160));
