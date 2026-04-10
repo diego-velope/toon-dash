@@ -234,7 +234,6 @@ pub struct GameState {
     pub distance: f32,
     pub coins: u32,
     pub combo: u32,
-    pub combo_anim_timer: f32,
 }
 
 impl Default for GameState {
@@ -246,7 +245,6 @@ impl Default for GameState {
             distance: 0.0,
             coins: 0,
             combo: 1,
-            combo_anim_timer: 0.0,
         }
     }
 }
@@ -264,7 +262,6 @@ impl GameState {
         self.distance = 0.0;
         self.coins = 0;
         self.combo = 1;
-        self.combo_anim_timer = 0.0;
     }
 
     pub fn pause(&mut self) {
@@ -291,7 +288,7 @@ impl GameState {
         self.screen = GameScreen::MainMenu;
     }
 
-    pub fn update_score(&mut self, dt: f32, distance: f32, coins: u32) {
+    pub fn update_score(&mut self, distance: f32, coins: u32) {
         let prev_dist = self.distance;
         self.distance = distance;
         self.coins = coins;
@@ -301,18 +298,12 @@ impl GameState {
         if dist_diff > 0.0 {
             self.score += dist_diff * self.combo as f32;
         }
-
-        // Update animation timer
-        if self.combo_anim_timer > 0.0 {
-            self.combo_anim_timer -= dt;
-        }
     }
 
     pub fn add_collectible_points(&mut self, is_jewel: bool) {
         if is_jewel {
             self.score += 200.0;
             self.combo += 1;
-            self.combo_anim_timer = 0.8; // Trigger animation
         } else {
             self.score += 100.0; // Coin is always 100 flat
         }

@@ -593,22 +593,12 @@ impl GameRenderer {
         let sh = screen_height();
         let combo_text = &self.hud_cache.combo_text;
 
-        // Smooth pulse: starts at base size, grows, then returns to base size.
-        // combo_anim_timer counts down from 0.8 to 0.0.
-        let anim_duration = 0.8_f32;
-        let anim_progress = (1.0 - (game_state.combo_anim_timer / anim_duration))
-            .clamp(0.0, 1.0);
-        let pulse = (anim_progress * std::f32::consts::PI).sin().max(0.0);
-        let base_size: u16 = 65;
-        let pop_size: u16 = 35;
-        let font_size = base_size + (pulse * pop_size as f32) as u16;
-
         // Horizontal center, bottom of screen
         self.draw_font_text_centered(
             combo_text,
             sw / 2.0,
             sh - 36.0,
-            font_size,
+            65,
             if game_state.combo > 1 { YELLOW } else { WHITE },
         );
     }

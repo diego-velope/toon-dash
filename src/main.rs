@@ -309,7 +309,6 @@ async fn main() {
                 }
 
                 game_state.update_score(
-                    dt,
                     player.distance_traveled,
                     game_state.coins + coins,
                 );
