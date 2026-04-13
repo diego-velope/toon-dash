@@ -7,7 +7,7 @@ use crate::models::{draw_mesh_at_rot, draw_mesh_at_transform, ModelManager};
 use glam::Quat;
 use macroquad::models::Vertex;
 use macroquad::prelude::*;
-use std::f32::consts::FRAC_PI_2;
+use std::f32::consts::{FRAC_PI_2, PI};
 
 /// City Kit `road-straight` tile: scale/step tuned so ~5 tiles cover segment length (~10).
 const ROAD_TILE_SCALE: f32 = 2.35;
@@ -15,6 +15,16 @@ const ROAD_TILE_STEP: f32 = 2.35;
 const ROAD_SURFACE_Y: f32 = 0.03;
 /// Character mesh pivot so feet sit on the road surface.
 const PLAYER_MESH_PIVOT_Y: f32 = 0.58;
+
+/// Main menu / character-select preview: subtle idle motion (no full spin).
+const PREVIEW_IDLE_BOB_AMP: f32 = 0.045;
+const PREVIEW_IDLE_BOB_HZ: f32 = 2.1;
+const PREVIEW_IDLE_YAW_AMP: f32 = 0.11;
+const PREVIEW_IDLE_YAW_HZ: f32 = 1.55;
+const PREVIEW_IDLE_ROLL_AMP: f32 = 0.065;
+const PREVIEW_IDLE_ROLL_HZ: f32 = 2.35;
+/// Camera sits on -Z looking toward +Z; rotate mesh so the character faces the viewer (Kenney export +X).
+const PREVIEW_FACE_CAMERA_Y: f32 = PI;
 
 /// Kenney humanoids export facing +X; gameplay runs along +Z.
 fn quat_face_run_dir() -> Quat {
@@ -30,6 +40,10 @@ pub struct GameRenderer {
     hud_cache: HudCache,
     /// Reused each frame for mesh draw helpers to avoid per-call `Vec<Vertex>` allocations.
     scratch_verts: Vec<Vertex>,
+    /// Which character the menu preview idle phase is aligned to (`None` until first draw).
+    preview_phase_choice: Option<CharacterChoice>,
+    /// `get_time()` when the current preview idle phase started (reset on character change).
+    preview_phase_start_time: f64,
 }
 
 #[derive(Default)]
@@ -103,6 +117,8 @@ impl GameRenderer {
             font: None,
             hud_cache: HudCache::new(),
             scratch_verts: Vec::new(),
+            preview_phase_choice: None,
+            preview_phase_start_time: 0.0,
         }
     }
 
@@ -695,7 +711,7 @@ impl GameRenderer {
         let bottom_padding = 15.0;
         let char_preview_h = panel_h - select_btn_h_val - name_area_h - bottom_padding - 10.0;
 
-        // 3D character rotating (centered in upper area)
+        // 3D character idle preview (centered in upper area)
         if allow_menu_preview_render {
             self.render_character_preview(
                 character_choice,
@@ -749,7 +765,7 @@ impl GameRenderer {
         }
     }
 
-    /// Render a rotating 3D character preview inside a screen-space rectangle.
+    /// Render a front-facing idle 3D character preview inside a screen-space rectangle.
     fn render_character_preview(
         &mut self,
         choice: &CharacterChoice,
@@ -762,6 +778,21 @@ impl GameRenderer {
     ) {
         let mesh_key = choice.mesh_key();
         if let Some(mesh) = self.model_manager.mesh(mesh_key) {
+            let now = get_time();
+            if self.preview_phase_choice != Some(*choice) {
+                self.preview_phase_choice = Some(*choice);
+                self.preview_phase_start_time = now;
+            }
+            let phase_t = (now - self.preview_phase_start_time) as f32;
+
+            let bob_y = PREVIEW_IDLE_BOB_AMP * (phase_t * PREVIEW_IDLE_BOB_HZ * std::f32::consts::TAU).sin();
+            let yaw = PREVIEW_IDLE_YAW_AMP * (phase_t * PREVIEW_IDLE_YAW_HZ * std::f32::consts::TAU).sin();
+            let roll = PREVIEW_IDLE_ROLL_AMP * (phase_t * PREVIEW_IDLE_ROLL_HZ * std::f32::consts::TAU).sin();
+            let rot = Quat::from_rotation_y(yaw)
+                * Quat::from_rotation_z(roll)
+                * Quat::from_rotation_y(PREVIEW_FACE_CAMERA_Y)
+                * quat_face_run_dir();
+
             let vp_x = panel_x.max(0.0) as i32;
             let vp_y = (screen_height() - panel_y - panel_h).max(0.0) as i32;
             let vp_w = panel_w.max(1.0) as i32;
@@ -781,13 +812,11 @@ impl GameRenderer {
                 z_far: 80.0,
             });
 
-            let t = get_time() as f32;
-            let spin = Quat::from_rotation_y(t * 0.5);
             draw_mesh_at_rot(
                 mesh,
-                vec3(0.0, model_y, 0.0),
+                vec3(0.0, model_y + bob_y, 0.0),
                 model_scale,
-                spin * quat_face_run_dir(),
+                rot,
                 &mut self.scratch_verts,
             );
 
