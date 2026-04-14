@@ -10,12 +10,12 @@ pub mod track;
 pub mod types;
 
 // Re-export everything
-pub use persistence::{load_highscore, save_highscore};
+pub use persistence::{load_stats, save_stats};
 pub use collectibles::{Collectible, CollectibleManager, CollectibleType};
 pub use obstacles::{Obstacle, ObstacleManager, ObstacleType};
 pub use player::{Player, PlayerState};
 pub use state::{
-    CharacterChoice, GameOverOption, GameScreen, GameSettings, GameState, MenuNavigator,
+    CharacterChoice, GameOverOption, GameScreen, GameSettings, GameState, LifetimeStats, MenuNavigator,
     MenuOption, MenuSubScreen, PauseOption, ShutdownFlow, ShutdownStage,
 };
 pub use track::{SegmentType, Track, TrackSegment};

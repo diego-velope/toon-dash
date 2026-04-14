@@ -233,6 +233,7 @@ pub struct GameState {
     pub high_score: f32,
     pub distance: f32,
     pub coins: u32,
+    pub stars: u32,
     pub combo: u32,
 }
 
@@ -244,15 +245,24 @@ impl Default for GameState {
             high_score: 0.0,
             distance: 0.0,
             coins: 0,
+            stars: 0,
             combo: 1,
         }
     }
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct LifetimeStats {
+    pub high_score: u32,
+    pub total_coins: u32,
+    pub total_stars: u32,
+    pub total_distance: u32,
+}
+
 impl GameState {
     pub fn new() -> Self {
         let mut state = Self::default();
-        state.high_score = super::persistence::load_highscore() as f32;
+        state.high_score = super::persistence::load_stats().high_score as f32;
         state
     }
 
@@ -261,6 +271,7 @@ impl GameState {
         self.score = 0.0;
         self.distance = 0.0;
         self.coins = 0;
+        self.stars = 0;
         self.combo = 1;
     }
 
@@ -276,11 +287,17 @@ impl GameState {
         }
     }
 
-    pub fn game_over(&mut self) {
+    pub fn game_over(&mut self, lifetime_stats: &mut LifetimeStats) {
         self.screen = GameScreen::GameOver;
+        lifetime_stats.total_coins += self.coins;
+        lifetime_stats.total_stars += self.stars;
+        lifetime_stats.total_distance += self.distance.floor() as u32;
+
         if self.score > self.high_score {
             self.high_score = self.score;
-            super::persistence::save_highscore(self.high_score as u32);
+        }
+        if self.high_score.floor() as u32 > lifetime_stats.high_score {
+            lifetime_stats.high_score = self.high_score.floor() as u32;
         }
     }
 
@@ -307,6 +324,10 @@ impl GameState {
         } else {
             self.score += 100.0; // Coin is always 100 flat
         }
+    }
+
+    pub fn add_star_points(&mut self) {
+        self.score += 500.0;
     }
 
     pub fn is_playing(&self) -> bool { self.screen == GameScreen::Playing }

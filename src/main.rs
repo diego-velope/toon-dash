@@ -50,6 +50,8 @@ async fn main() {
     let mut obstacle_manager = ObstacleManager::new();
     let mut collectible_manager = CollectibleManager::new();
     let mut renderer = GameRenderer::new();
+    let mut lifetime_stats = load_stats();
+    game_state.high_score = lifetime_stats.high_score as f32;
 
     // Menu state
     let mut menu_nav = MenuNavigator::main_menu();
@@ -109,7 +111,7 @@ async fn main() {
         }
 
         // Smooth progression avoids visible hitches when combo spikes score.
-        let target_speed_multiplier = 1.0 + (game_state.score / 5000.0);
+        let target_speed_multiplier = 1.0 + (game_state.score / 15000.0);
         smoothed_speed_multiplier += (target_speed_multiplier - smoothed_speed_multiplier) * 0.05;
         let total_speed = game_settings.speed_f32() * smoothed_speed_multiplier;
         let scaled_dt = dt * total_speed;
@@ -260,6 +262,9 @@ async fn main() {
                     &config,
                 );
                 obstacle_manager.update(player.distance_traveled, &config);
+                let high_barriers = obstacle_manager.get_high_barriers();
+                collectible_manager
+                    .spawn_stars_under_obstacles(high_barriers.iter(), config.lane_width);
 
                 collectible_manager.spawn_from_segments(
                     track.get_coin_zones(player.distance_traveled, config.spawn_distance),
@@ -276,18 +281,19 @@ async fn main() {
                     player.is_sliding(),
                 ) {
                     player.die();
-                    game_state.game_over();
+                    game_state.game_over(&mut lifetime_stats);
+                    save_stats(lifetime_stats);
                     gameover_nav = MenuNavigator::game_over_menu();
                 }
 
                 // Check collectible collection
-                let (coins, jewels) = collectible_manager.check_collection(
+                let (coins, jewels, stars) = collectible_manager.check_collection(
                     player.lane,
                     player.position.y,
                     player.distance_traveled,
                 );
 
-                if coins > 0 || jewels > 0 {
+                if coins > 0 || jewels > 0 || stars > 0 {
                     let sfx_vol = game_settings
                         .master_volume
                         .min(game_settings.effects_volume) as f32
@@ -306,7 +312,11 @@ async fn main() {
                     for _ in 0..jewels {
                         game_state.add_collectible_points(true);
                     }
+                    for _ in 0..stars {
+                        game_state.add_star_points();
+                    }
                 }
+                game_state.stars += stars;
 
                 game_state.update_score(
                     player.distance_traveled,
@@ -391,6 +401,7 @@ async fn main() {
             &gameover_nav,
             &sub_screen,
             &game_settings,
+            &lifetime_stats,
             &character_choice,
             select_char_focused,
             quit_confirm_close_focused,

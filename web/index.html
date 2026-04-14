@@ -197,6 +197,60 @@
         var score = localStorage.getItem("toon_dash_high_score");
         return score ? parseInt(score) : 0;
       };
+      window.mq_save_stats = function (
+        highScore,
+        totalCoins,
+        totalStars,
+        totalDistance,
+      ) {
+        var payload = {
+          high_score: highScore || 0,
+          total_coins: totalCoins || 0,
+          total_stars: totalStars || 0,
+          total_distance: totalDistance || 0,
+        };
+        localStorage.setItem("toon_dash_stats", JSON.stringify(payload));
+      };
+      window.mq_load_stats_high_score = function () {
+        var raw = localStorage.getItem("toon_dash_stats");
+        if (!raw) return window.mq_load_highscore();
+        try {
+          var stats = JSON.parse(raw);
+          return stats.high_score ? parseInt(stats.high_score) : 0;
+        } catch (_) {
+          return window.mq_load_highscore();
+        }
+      };
+      window.mq_load_stats_total_coins = function () {
+        var raw = localStorage.getItem("toon_dash_stats");
+        if (!raw) return 0;
+        try {
+          var stats = JSON.parse(raw);
+          return stats.total_coins ? parseInt(stats.total_coins) : 0;
+        } catch (_) {
+          return 0;
+        }
+      };
+      window.mq_load_stats_total_stars = function () {
+        var raw = localStorage.getItem("toon_dash_stats");
+        if (!raw) return 0;
+        try {
+          var stats = JSON.parse(raw);
+          return stats.total_stars ? parseInt(stats.total_stars) : 0;
+        } catch (_) {
+          return 0;
+        }
+      };
+      window.mq_load_stats_total_distance = function () {
+        var raw = localStorage.getItem("toon_dash_stats");
+        if (!raw) return 0;
+        try {
+          var stats = JSON.parse(raw);
+          return stats.total_distance ? parseInt(stats.total_distance) : 0;
+        } catch (_) {
+          return 0;
+        }
+      };
 
       var FPS_TARGET = 30;
       var fpsQueryEnabled =
@@ -324,6 +378,15 @@
           // Register existing functions
           importObject.env.mq_save_highscore = window.mq_save_highscore;
           importObject.env.mq_load_highscore = window.mq_load_highscore;
+          importObject.env.mq_save_stats = window.mq_save_stats;
+          importObject.env.mq_load_stats_high_score =
+            window.mq_load_stats_high_score;
+          importObject.env.mq_load_stats_total_coins =
+            window.mq_load_stats_total_coins;
+          importObject.env.mq_load_stats_total_stars =
+            window.mq_load_stats_total_stars;
+          importObject.env.mq_load_stats_total_distance =
+            window.mq_load_stats_total_distance;
           importObject.env.mq_set_progress = window.mq_set_progress;
           importObject.env.mq_hide_splash = window.mq_hide_splash;
           importObject.env.mq_shutdown_game = window.mq_shutdown_game;
