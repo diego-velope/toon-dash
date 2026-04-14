@@ -11,6 +11,7 @@ use rand::Rng;
 pub enum CollectibleType {
     Coin,
     Jewel,
+    Star,
 }
 
 #[derive(Debug, Clone)]
@@ -26,6 +27,7 @@ pub struct CollectibleManager {
     rng: SmallRng,
     last_spawn_z: f32,
     min_spacing: f32,
+    star_keys: Vec<(i32, Lane)>,
 }
 
 impl Default for CollectibleManager {
@@ -41,6 +43,7 @@ impl CollectibleManager {
             rng: SmallRng::from_entropy(),
             last_spawn_z: 20.0,
             min_spacing: 30.0,
+            star_keys: Vec::new(),
         }
     }
 
@@ -48,6 +51,7 @@ impl CollectibleManager {
         self.items.clear();
         self.rng = SmallRng::from_entropy();
         self.last_spawn_z = 20.0;
+        self.star_keys.clear();
     }
 
     pub fn spawn_from_segments<'a, I>(&mut self, segments: I, config: &GameConfig)
@@ -93,15 +97,40 @@ impl CollectibleManager {
         self.items.retain(|c| c.position.z > despawn_z);
     }
 
-    /// Returns a tuple of (coins_collected, jewels_collected)
+    pub fn spawn_stars_under_obstacles<'a, I>(&mut self, obstacles: I, lane_width: f32)
+    where
+        I: IntoIterator<Item = &'a (Lane, f32)>,
+    {
+        for (lane, z) in obstacles {
+            if !self.rng.gen_bool(0.70) {
+                continue;
+            }
+
+            let key = ((z * 100.0).round() as i32, *lane);
+            if self.star_keys.iter().any(|k| *k == key) {
+                continue;
+            }
+
+            self.items.push(Collectible {
+                ctype: CollectibleType::Star,
+                position: Position3D::new(lane.to_x(lane_width), 1.0, *z),
+                lane: *lane,
+                collected: false,
+            });
+            self.star_keys.push(key);
+        }
+    }
+
+    /// Returns a tuple of (coins_collected, jewels_collected, stars_collected)
     pub fn check_collection(
         &mut self,
         player_lane: Lane,
         player_y: f32,
         player_z: f32,
-    ) -> (u32, u32) {
+    ) -> (u32, u32, u32) {
         let mut coins_collected = 0;
         let mut jewels_collected = 0;
+        let mut stars_collected = 0;
         
         for item in &mut self.items {
             if item.collected { continue; }
@@ -115,11 +144,12 @@ impl CollectibleManager {
                 match item.ctype {
                     CollectibleType::Coin => coins_collected += 1,
                     CollectibleType::Jewel => jewels_collected += 1,
+                    CollectibleType::Star => stars_collected += 1,
                 }
             }
         }
         
-        (coins_collected, jewels_collected)
+        (coins_collected, jewels_collected, stars_collected)
     }
 
     pub fn get_visible(&self, player_z: f32, view_dist: f32) -> impl Iterator<Item = &Collectible> {

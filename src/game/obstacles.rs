@@ -166,4 +166,12 @@ impl ObstacleManager {
         self.obstacles.iter()
             .filter(move |o| o.position.z > player_z - 20.0 && o.position.z < player_z + view_dist)
     }
+
+    pub fn get_high_barriers(&self) -> Vec<(Lane, f32)> {
+        self.obstacles
+            .iter()
+            .filter(|o| o.obstacle_type == ObstacleType::HighBarrier)
+            .map(|o| (o.lane, o.position.z))
+            .collect()
+    }
 }

@@ -21,6 +21,7 @@ pub mod paths {
     pub const SPIKE_BLOCK: &str = "models/spike-block-wide.glb";
     pub const POLES: &str = "models/poles.glb";
     pub const JEWEL: &str = "models/jewel.glb";
+    pub const STAR: &str = "models/star.glb";
 
     // Character selection variants
     pub const CHAR_OODI: &str = "models/character-oodi.glb";
@@ -90,6 +91,8 @@ impl ModelManager {
             "track_segment".to_string(),
             Color::from_rgba(100, 100, 120, 255),
         );
+        self.colors
+            .insert("star".to_string(), Color::from_rgba(255, 215, 0, 255));
 
         crate::game::loading::set_progress(20.0);
         let atlas_roads = match load_texture(paths::COLORMAP_ROADS).await {
@@ -146,6 +149,8 @@ impl ModelManager {
         self.try_load_glb("obstacle_full", paths::POLES, atlas_platformer.clone())
             .await;
         self.try_load_glb("jewel", paths::JEWEL, atlas_platformer.clone())
+            .await;
+        self.try_load_glb("star", paths::STAR, atlas_platformer.clone())
             .await;
 
         crate::game::loading::set_progress(65.0);

@@ -7,7 +7,7 @@ use crate::models::{draw_mesh_at_rot, draw_mesh_at_transform, ModelManager};
 use glam::Quat;
 use macroquad::models::Vertex;
 use macroquad::prelude::*;
-use std::f32::consts::FRAC_PI_2;
+use std::f32::consts::{FRAC_PI_2, PI};
 
 /// City Kit `road-straight` tile: scale/step tuned so ~5 tiles cover segment length (~10).
 const ROAD_TILE_SCALE: f32 = 2.35;
@@ -15,6 +15,16 @@ const ROAD_TILE_STEP: f32 = 2.35;
 const ROAD_SURFACE_Y: f32 = 0.03;
 /// Character mesh pivot so feet sit on the road surface.
 const PLAYER_MESH_PIVOT_Y: f32 = 0.58;
+
+/// Main menu / character-select preview: subtle idle motion (no full spin).
+const PREVIEW_IDLE_BOB_AMP: f32 = 0.045;
+const PREVIEW_IDLE_BOB_HZ: f32 = 1.2;
+const PREVIEW_IDLE_YAW_AMP: f32 = 0.07;
+const PREVIEW_IDLE_YAW_HZ: f32 = 1.2;
+const PREVIEW_IDLE_ROLL_AMP: f32 = 0.065;
+const PREVIEW_IDLE_ROLL_HZ: f32 = 1.2;
+/// Camera sits on -Z looking toward +Z; rotate mesh so the character faces the viewer (Kenney export +X).
+const PREVIEW_FACE_CAMERA_Y: f32 = PI;
 
 /// Kenney humanoids export facing +X; gameplay runs along +Z.
 fn quat_face_run_dir() -> Quat {
@@ -30,16 +40,22 @@ pub struct GameRenderer {
     hud_cache: HudCache,
     /// Reused each frame for mesh draw helpers to avoid per-call `Vec<Vertex>` allocations.
     scratch_verts: Vec<Vertex>,
+    /// Which character the menu preview idle phase is aligned to (`None` until first draw).
+    preview_phase_choice: Option<CharacterChoice>,
+    /// `get_time()` when the current preview idle phase started (reset on character change).
+    preview_phase_start_time: f64,
 }
 
 #[derive(Default)]
 struct HudCache {
     last_score: u32,
     last_coins: u32,
+    last_stars: u32,
     last_distance: i32,
     last_combo: u32,
     score_text: String,
     coins_text: String,
+    stars_text: String,
     distance_text: String,
     combo_text: String,
 }
@@ -49,10 +65,12 @@ impl HudCache {
         Self {
             last_score: u32::MAX,
             last_coins: u32::MAX,
+            last_stars: u32::MAX,
             last_distance: i32::MIN,
             last_combo: u32::MAX,
             score_text: String::new(),
             coins_text: String::new(),
+            stars_text: String::new(),
             distance_text: String::new(),
             combo_text: String::new(),
         }
@@ -72,6 +90,13 @@ impl HudCache {
             self.coins_text.clear();
             self.coins_text.push_str("Coins: ");
             self.coins_text.push_str(&game_state.coins.to_string());
+        }
+
+        if game_state.stars != self.last_stars {
+            self.last_stars = game_state.stars;
+            self.stars_text.clear();
+            self.stars_text.push_str("Stars: ");
+            self.stars_text.push_str(&game_state.stars.to_string());
         }
 
         let distance = game_state.distance as i32;
@@ -103,6 +128,8 @@ impl GameRenderer {
             font: None,
             hud_cache: HudCache::new(),
             scratch_verts: Vec::new(),
+            preview_phase_choice: None,
+            preview_phase_start_time: 0.0,
         }
     }
 
@@ -160,6 +187,7 @@ impl GameRenderer {
         gameover_nav: &MenuNavigator<GameOverOption>,
         sub_screen: &MenuSubScreen,
         game_settings: &GameSettings,
+        lifetime_stats: &LifetimeStats,
         character_choice: &CharacterChoice,
         select_char_focused: bool,
         quit_confirm_close_focused: bool,
@@ -187,6 +215,7 @@ impl GameRenderer {
                     menu_nav,
                     sub_screen,
                     game_settings,
+                    lifetime_stats,
                     character_choice,
                     select_char_focused,
                     quit_confirm_close_focused,
@@ -515,6 +544,7 @@ impl GameRenderer {
         let (mesh_key, default_color) = match item.ctype {
             CollectibleType::Coin => ("coin", self.model_manager.get_color("coin")),
             CollectibleType::Jewel => ("jewel", Color::from_rgba(180, 50, 255, 255)), // Jewel color fallback
+            CollectibleType::Star => ("star", self.model_manager.get_color("star")),
         };
 
         let bob = (frame_time * 3.0 + pos.z * 0.5).sin() * 0.15;
@@ -564,7 +594,7 @@ impl GameRenderer {
         self.hud_cache.update(game_state);
 
         // Larger HUD panel for 1080p TVs
-        draw_rectangle(20.0, 20.0, 340.0, 160.0, Color::from_rgba(0, 0, 0, 150));
+        draw_rectangle(20.0, 20.0, 340.0, 200.0, Color::from_rgba(0, 0, 0, 150));
 
         self.draw_font_text(
             &self.hud_cache.score_text,
@@ -586,6 +616,13 @@ impl GameRenderer {
             150.0,
             32,
             Color::from_rgba(180, 180, 200, 255),
+        );
+        self.draw_font_text(
+            &self.hud_cache.stars_text,
+            35.0,
+            188.0,
+            32,
+            Color::from_rgba(255, 235, 120, 255),
         );
 
         // ── Combo Multiplier Label ──────────────────────────────────────
@@ -609,6 +646,7 @@ impl GameRenderer {
         menu_nav: &MenuNavigator<MenuOption>,
         sub_screen: &MenuSubScreen,
         game_settings: &GameSettings,
+        lifetime_stats: &LifetimeStats,
         character_choice: &CharacterChoice,
         select_char_focused: bool,
         quit_confirm_close_focused: bool,
@@ -639,6 +677,45 @@ impl GameRenderer {
         let left_col_x = (sw - btn_w) / 2.0;
         let menu_start_y = sh * 0.45;
         let btn_spacing = 135.0;
+
+        draw_rectangle(25.0, 25.0, 370.0, 190.0, Color::from_rgba(0, 0, 0, 140));
+        draw_rectangle_lines(
+            25.0,
+            25.0,
+            370.0,
+            190.0,
+            2.0,
+            Color::from_rgba(255, 255, 255, 100),
+        );
+        self.draw_font_text("LIFETIME", 42.0, 62.0, 34, WHITE);
+        self.draw_font_text(
+            &format!("High Score: {}", lifetime_stats.high_score),
+            42.0,
+            100.0,
+            26,
+            YELLOW,
+        );
+        self.draw_font_text(
+            &format!("Coins Earned: {}", lifetime_stats.total_coins),
+            42.0,
+            132.0,
+            24,
+            Color::from_rgba(255, 210, 90, 255),
+        );
+        self.draw_font_text(
+            &format!("Stars Earned: {}", lifetime_stats.total_stars),
+            42.0,
+            160.0,
+            24,
+            Color::from_rgba(255, 235, 120, 255),
+        );
+        self.draw_font_text(
+            &format!("Distance: {}m", lifetime_stats.total_distance),
+            42.0,
+            188.0,
+            24,
+            Color::from_rgba(180, 180, 200, 255),
+        );
 
         // ── Left column: 4 buttons ──────────────────────────────────────
         for (i, option) in menu_nav.options.iter().enumerate() {
@@ -695,7 +772,7 @@ impl GameRenderer {
         let bottom_padding = 15.0;
         let char_preview_h = panel_h - select_btn_h_val - name_area_h - bottom_padding - 10.0;
 
-        // 3D character rotating (centered in upper area)
+        // 3D character idle preview (centered in upper area)
         if allow_menu_preview_render {
             self.render_character_preview(
                 character_choice,
@@ -749,7 +826,7 @@ impl GameRenderer {
         }
     }
 
-    /// Render a rotating 3D character preview inside a screen-space rectangle.
+    /// Render a front-facing idle 3D character preview inside a screen-space rectangle.
     fn render_character_preview(
         &mut self,
         choice: &CharacterChoice,
@@ -762,6 +839,21 @@ impl GameRenderer {
     ) {
         let mesh_key = choice.mesh_key();
         if let Some(mesh) = self.model_manager.mesh(mesh_key) {
+            let now = get_time();
+            if self.preview_phase_choice != Some(*choice) {
+                self.preview_phase_choice = Some(*choice);
+                self.preview_phase_start_time = now;
+            }
+            let phase_t = (now - self.preview_phase_start_time) as f32;
+
+            let bob_y = PREVIEW_IDLE_BOB_AMP * (phase_t * PREVIEW_IDLE_BOB_HZ * std::f32::consts::TAU).sin();
+            let yaw = PREVIEW_IDLE_YAW_AMP * (phase_t * PREVIEW_IDLE_YAW_HZ * std::f32::consts::TAU).sin();
+            let roll = PREVIEW_IDLE_ROLL_AMP * (phase_t * PREVIEW_IDLE_ROLL_HZ * std::f32::consts::TAU).sin();
+            let rot = Quat::from_rotation_y(yaw)
+                * Quat::from_rotation_z(roll)
+                * Quat::from_rotation_y(PREVIEW_FACE_CAMERA_Y)
+                * quat_face_run_dir();
+
             let vp_x = panel_x.max(0.0) as i32;
             let vp_y = (screen_height() - panel_y - panel_h).max(0.0) as i32;
             let vp_w = panel_w.max(1.0) as i32;
@@ -781,13 +873,11 @@ impl GameRenderer {
                 z_far: 80.0,
             });
 
-            let t = get_time() as f32;
-            let spin = Quat::from_rotation_y(t * 0.5);
             draw_mesh_at_rot(
                 mesh,
-                vec3(0.0, model_y, 0.0),
+                vec3(0.0, model_y + bob_y, 0.0),
                 model_scale,
-                spin * quat_face_run_dir(),
+                rot,
                 &mut self.scratch_verts,
             );
 
@@ -1231,6 +1321,20 @@ impl GameRenderer {
             cy - 100.0,
             36,
             YELLOW,
+        );
+        self.draw_font_text_centered(
+            &format!("Stars: {}", game_state.stars),
+            cx,
+            cy - 45.0,
+            34,
+            Color::from_rgba(255, 235, 120, 255),
+        );
+        self.draw_font_text_centered(
+            &format!("Coins: {}", game_state.coins),
+            cx,
+            cy + 2.0,
+            32,
+            Color::from_rgba(255, 210, 90, 255),
         );
 
         let btn_w = 360.0;
