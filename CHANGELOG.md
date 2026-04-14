@@ -5,6 +5,26 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-04-14
+
+### Added
+
+- New collectible `CollectibleType::Star`, loaded from `assets/models/star.glb` and spawned under high barriers.
+- Lifetime progression stats (`LifetimeStats`) with persistent totals for high score, coins earned, stars earned, and distance traveled.
+- Main-menu lifetime stats panel and gameplay HUD `Stars` line.
+- Game-over stats line for stars and coins collected in the run.
+
+### Changed
+
+- Menu/character-select preview animation now uses front-facing idle motion (bob/yaw/roll) instead of full continuous spin, with phase reset on character change.
+- Character preview orientation adjusted to face the camera correctly in menu previews.
+- Star spawning under high barriers now uses a 70% spawn chance.
+- WASM/browser persistence wiring expanded in `web/index.html` with `mq_save_stats` and `mq_load_stats_*` bindings for lifetime stats.
+
+### Fixed
+
+- Star pickups no longer increase the combo multiplier; they award score only (`+500`) as intended.
+
 ## [0.1.0] - 2026-04-08
 
 ### Added
